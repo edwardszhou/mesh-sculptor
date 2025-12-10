@@ -38,7 +38,7 @@ class Mediapipe {
     this.video = video;
 
     this.drawUtils = new DrawingUtils(this.canvasCtx);
-    this.drawRules = [];
+    this.drawRule = null;
 
     this.landmarker = null;
     this.results = null;
@@ -122,12 +122,9 @@ class Mediapipe {
           }
         );
 
-        let color = "#FF0000"
         for (let j = 0; j < landmarks.length; j++) {
           const landmark = landmarks[j]
-          for(const rule of this.drawRules) {
-            if(rule.check(j, landmark, handedness)) color = rule.color 
-          }
+          const color = this.drawRule?.(j, landmark, handedness) ?? "#FF0000"
 
           this.drawUtils.drawLandmarks([landmark], {
             color,
