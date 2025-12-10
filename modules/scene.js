@@ -1,5 +1,4 @@
-import { M4 } from "./math.js";
-import { MeshMaker, VERTEX_SIZE } from "./mesh.js";
+import { VERTEX_SIZE } from "./mesh.js";
 
 const vShader = `\
 #version 300 es
@@ -36,6 +35,8 @@ class Scene {
     this.textures = [];
     this.canvas = canvas;
     this.gl = canvas.getContext("webgl2");
+
+    this.onUpdate = null;
   }
 
   init() {
@@ -79,20 +80,10 @@ class Scene {
 
   update() {
     const gl = this.gl;
+    const camT = this.onUpdate?.()
 
-    let time = Date.now() / 1000;
-    let camT = M4.nmul(
-      M4.perspective(0,0,-0.5),
-      M4.rot(M4.X, -0.3),
-      M4.move(0, -1.5, -5),
-      M4.rot(M4.Y, (time * Math.PI * 2) / 8)
-    );
-
-    let defaultBox = MeshMaker.sphereMesh(10, 10);
-    defaultBox = MeshMaker.rectMesh(1, 0.4, 0.8)
-    this.meshes = [defaultBox]
     for (const mesh of this.meshes) {
-      mesh.draw(gl, camT, true)
+      mesh.draw(gl, camT, false)
     }
 
     setTimeout(() => {

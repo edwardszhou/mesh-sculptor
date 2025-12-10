@@ -4,6 +4,33 @@ import {
   DrawingUtils
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
+const HAND = {
+  "WRIST": 0,
+  "THUMB_CMC": 1,
+  "THUMB_MCP": 2,
+  "THUMB_IP": 3,
+  "THUMB_TIP": 4,
+
+  "INDEX_FINGER_MCP": 5,
+  "INDEX_FINGER_PIP": 6,
+  "INDEX_FINGER_DIP": 7,
+  "INDEX_FINGER_TIP": 8,
+
+  "MIDDLE_FINGER_MCP": 9,
+  "MIDDLE_FINGER_PIP": 10,
+  "MIDDLE_FINGER_DIP": 11,
+  "MIDDLE_FINGER_TIP": 12,
+
+  "RING_FINGER_MCP": 13,
+  "RING_FINGER_PIP": 14,
+  "RING_FINGER_DIP": 15,
+  "RING_FINGER_TIP": 16,
+
+  "PINKY_MCP": 17,
+  "PINKY_PIP": 18,
+  "PINKY_DIP": 19,
+  "PINKY_TIP": 20
+};
 class Mediapipe {
   constructor(canvas, video) {
     this.canvas = canvas;
@@ -11,7 +38,7 @@ class Mediapipe {
     this.video = video;
 
     this.drawUtils = new DrawingUtils(this.canvasCtx);
-    this.onResults = null;
+    this.drawRules = [];
 
     this.landmarker = null;
     this.results = null;
@@ -85,6 +112,7 @@ class Mediapipe {
     if (this.results.landmarks) {
       for (let i = 0; i < this.results.landmarks.length; i++) {
         const landmarks = this.results.landmarks[i];
+        const handedness = this.results.handednesses[i][0].displayName;
         this.drawUtils.drawConnectors(
           landmarks,
           HandLandmarker.HAND_CONNECTIONS,
@@ -93,13 +121,21 @@ class Mediapipe {
             lineWidth: 5
           }
         );
-        this.drawUtils.drawLandmarks(landmarks, {
-          color: "#FF0000",
-          lineWidth: 2
-        });
+
+        let color = "#FF0000"
+        for (let j = 0; j < landmarks.length; j++) {
+          const landmark = landmarks[j]
+          for(const rule of this.drawRules) {
+            if(rule.check(j, landmark, handedness)) color = rule.color 
+          }
+
+          this.drawUtils.drawLandmarks([landmark], {
+            color,
+            lineWidth: 2
+          });
+        }
       }
     }
-    this.onResults?.();
     canvasCtx.restore();
 
     if (this.running === true) {
@@ -108,14 +144,4 @@ class Mediapipe {
   }
 }
 
-function getAveragePos(a, b, c) {
-  return { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
-}
-function getTotalDist(a, b, c) {
-  const ab = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
-  const bc = Math.pow(b.x - c.x, 2) + Math.pow(b.y - c.y, 2);
-  const ca = Math.pow(c.x - a.x, 2) + Math.pow(c.y - a.y, 2);
-  return ab + bc + ca;
-}
-
-export { Mediapipe };
+export { Mediapipe, HAND };
