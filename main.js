@@ -30,13 +30,15 @@ window.onload = () => {
 
   scene.init();
 
-  let defaultBox = MeshMaker.sphereMesh(10, 10);
+  let clay = MeshMaker.sphereMesh(10, 10);
+  clay.transform.scale(-1, -1, 1)
+  let clayBase = [...clay.data]
   let indicatorL = MeshMaker.sphereMesh(5, 5);
   indicatorL.color = [0,1,1]
   let indicatorR = MeshMaker.sphereMesh(5, 5);
   indicatorR.color = [0,0,1]
 
-  scene.meshes.push(defaultBox);
+  scene.meshes.push(clay);
   scene.meshes.push(indicatorL);
   scene.meshes.push(indicatorR);
 
@@ -64,6 +66,18 @@ window.onload = () => {
         indicatorL.transform.set(M4.identity());
         indicatorL.transform.move(-markerCoords.x, -markerCoords.y, 0).scale(0.1);
         isPinching = mark.dist < 0.01;
+
+        if(isPinching) {
+          for(let i = 0; i < clay.data.length; i += 6) {
+            let x = clay.data[i]
+            let y = clay.data[i+1]
+            
+            let dist = Math.pow(markerCoords.x - x, 2) + Math.pow(markerCoords.y - y, 2) ;
+
+            clay.data[i] = clayBase[i] + Math.max(0.5 - dist, 0) * markerCoords.x
+            clay.data[i+1] = clayBase[i+1] + Math.max(0.5 - dist, 0) * markerCoords.y
+          }
+        }
       } else if(mark.handedness == "Right") {
         indicatorR.transform.set(M4.identity());
         indicatorR.transform.move(-markerCoords.x, -markerCoords.y, 0).scale(0.1);
@@ -107,7 +121,7 @@ function avgPos2D(...pts) {
 function screenToWorld(pt) {
   return { x: (pt.x - 0.5) * 10, y: (pt.y - 0.5) * 7 };
 }
-function getTotalDist(a, b, c) {
+function dist3(a, b, c) {
   const ab = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
   const bc = Math.pow(b.x - c.x, 2) + Math.pow(b.y - c.y, 2);
   const ca = Math.pow(c.x - a.x, 2) + Math.pow(c.y - a.y, 2);
