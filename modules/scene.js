@@ -84,6 +84,10 @@ class Scene {
 
     for (const mesh of this.meshes) {
       mesh.draw(gl, camT, false)
+      let col = mesh.color;
+      mesh.color = [1,1,1];
+      mesh.draw(gl, camT, true)
+      mesh.color = col;
     }
 
     setTimeout(() => {

@@ -1,7 +1,19 @@
 import { Scene } from "./modules/scene.js";
 import { Mediapipe, HAND } from "./modules/mediapipe.js";
 import { MeshMaker } from "./modules/mesh.js";
-import { M4 } from "./modules/math.js";
+import { M4, V4 } from "./modules/math.js";
+
+let globalRot = 0;
+let mouseX = 0;
+document.addEventListener('mousedown', (e) => {
+  mouseX = e.clientX;
+})
+document.addEventListener('mouseup', (e) => {
+  mouseX = 0;
+})
+document.addEventListener('mousemove', (e) => {
+  if(mouseX) globalRot += 0.0001 * (e.clientX - mouseX);
+})
 
 window.onload = () => {
   const video = document.getElementById("webcam");
@@ -30,9 +42,8 @@ window.onload = () => {
 
   scene.init();
 
-  let clay = MeshMaker.sphereMesh(10, 10);
+  let clay = MeshMaker.sphereMesh(20, 20);
   clay.transform.scale(-1, -1, 1)
-  let clayBase = [...clay.data]
   let indicatorL = MeshMaker.sphereMesh(5, 5);
   indicatorL.color = [0,1,1]
   let indicatorR = MeshMaker.sphereMesh(5, 5);
@@ -42,8 +53,11 @@ window.onload = () => {
   scene.meshes.push(indicatorL);
   scene.meshes.push(indicatorR);
 
+  let clayBase = [...clay.data]
+  let clayDist = Array(clayBase.length / 6)
+  let handBase = {}
   let isPinching = false;
-
+  
   scene.onUpdate = () => {
     let markers = [];
 
@@ -64,20 +78,33 @@ window.onload = () => {
       const markerCoords = screenToWorld(mark);
       if(mark.handedness == "Left") {
         indicatorL.transform.set(M4.identity());
-        indicatorL.transform.move(-markerCoords.x, -markerCoords.y, 0).scale(0.1);
-        isPinching = mark.dist < 0.01;
+        indicatorL.transform.move(-markerCoords.x, -markerCoords.y, markerCoords.z).scale(0.1);
+        let toPinch = mark.dist < 0.01;
 
-        if(isPinching) {
+        if(!isPinching && toPinch) {
           for(let i = 0; i < clay.data.length; i += 6) {
             let x = clay.data[i]
             let y = clay.data[i+1]
+            let z = clay.data[i+2]
             
-            let dist = Math.pow(markerCoords.x - x, 2) + Math.pow(markerCoords.y - y, 2) ;
-
-            clay.data[i] = clayBase[i] + Math.max(0.5 - dist, 0) * markerCoords.x
-            clay.data[i+1] = clayBase[i+1] + Math.max(0.5 - dist, 0) * markerCoords.y
+            let dist = Math.pow(markerCoords.x - x, 2) + Math.pow(markerCoords.y - y, 2) + Math.pow(markerCoords.z - z, 2);
+            clayDist[Math.floor(i / 6)] = dist; 
+            handBase = {...markerCoords}
+          }
+        } else if(isPinching) {
+          if(!toPinch) {
+            clayBase = [...clay.data]
+          } else {
+            for(let i = 0; i < clay.data.length; i += 6) {
+              clay.data[i] = clayBase[i] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (markerCoords.x - handBase.x)
+              clay.data[i+1] = clayBase[i+1] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (markerCoords.y - handBase.y)
+              clay.data[i+2] = clayBase[i+2] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (markerCoords.z - handBase.z)
+            }
           }
         }
+
+        isPinching = toPinch;
+
       } else if(mark.handedness == "Right") {
         indicatorR.transform.set(M4.identity());
         indicatorR.transform.move(-markerCoords.x, -markerCoords.y, 0).scale(0.1);
@@ -90,7 +117,8 @@ window.onload = () => {
     let camT = M4.nmul(
       M4.perspective(0, 0, -0.5),
       M4.rot(M4.X, -0.3),
-      M4.move(0, -1.5, -5)
+      M4.move(0, -1.5, -5),
+      M4.rot(M4.Y, globalRot)
       //M4.rot(M4.Y, (time * Math.PI * 2) / 8)
     );
     return camT;
@@ -107,6 +135,7 @@ window.onload = () => {
       return "#FF0000";
     }
   };
+  
 };
 
 function avgPos2D(...pts) {
@@ -119,7 +148,11 @@ function avgPos2D(...pts) {
 }
 
 function screenToWorld(pt) {
-  return { x: (pt.x - 0.5) * 10, y: (pt.y - 0.5) * 7 };
+  let initial = { x: (pt.x - 0.5) * 10, y: (pt.y - 0.5) * 7 }
+  let rot = M4.rot(M4.Y, globalRot)
+  let vec = [initial.x, initial.y, 0, 1]
+  let res = V4.transform(rot, vec)
+  return {x: res[0], y: res[1], z: res[2]}
 }
 function dist3(a, b, c) {
   const ab = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
