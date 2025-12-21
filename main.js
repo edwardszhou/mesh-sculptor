@@ -1,10 +1,11 @@
 import { Scene } from "./modules/scene.js";
 import { Mediapipe, HAND } from "./modules/mediapipe.js";
 import { MeshMaker } from "./modules/mesh.js";
-import { M4, V4 } from "./modules/math.js";
+import { M4, V3, V4 } from "./modules/math.js";
 
 let globalRot = 0;
 let mouseX = 0;
+
 document.addEventListener('mousedown', (e) => {
   mouseX = e.clientX;
 })
@@ -44,14 +45,15 @@ window.onload = () => {
 
   let clay = MeshMaker.sphereMesh(20, 20);
   clay.transform.scale(-1, -1, 1)
-  let indicatorL = MeshMaker.sphereMesh(5, 5);
-  indicatorL.color = [0,1,1]
-  let indicatorR = MeshMaker.sphereMesh(5, 5);
-  indicatorR.color = [0,0,1]
-
+  let indicators = {};
+  indicators.left = MeshMaker.rectMesh(.1,.1,.5);
+  indicators.right = MeshMaker.rectMesh(.1,.1,.5);
+  indicators.left.color = [0,1,1]
+  indicators.right.color = [0,0,1]
+  
   scene.meshes.push(clay);
-  scene.meshes.push(indicatorL);
-  scene.meshes.push(indicatorR);
+  scene.meshes.push(indicators.left);
+  scene.meshes.push(indicators.right);
 
   let clayBase = [...clay.data]
   let clayDist = Array(clayBase.length / 6)
@@ -61,25 +63,21 @@ window.onload = () => {
   scene.onUpdate = () => {
     let markers = [];
 
-    if (mp.results?.landmarks?.length > 0) {
-      for (let i = 0; i< mp.results.landmarks.length; i++) {
-        const landmarks = mp.results.landmarks[i];
-        const handedness = mp.results.handednesses[i][0].displayName;
-        
-        const thumbTip = landmarks[HAND.THUMB_TIP];
-        const indexTip = landmarks[HAND.INDEX_FINGER_TIP];
-        const dist = Math.pow(indexTip.x - thumbTip.x, 2) + Math.pow(indexTip.y - thumbTip.y, 2)
+    for (const handedness in mp.results) {
+      const landmarks = mp.results[handedness].landmarks;
+      const worldLandmarks = mp.results[handedness].worldLandmarks;
+      
+      const thumbTip = landmarks[HAND.THUMB_TIP];
+      const indexTip = landmarks[HAND.INDEX_FINGER_TIP];
+      const pinchCoords = screenToWorld(avgPos2D(thumbTip, indexTip))
+      const pinchDist = Math.pow(indexTip.x - thumbTip.x, 2) + Math.pow(indexTip.y - thumbTip.y, 2)
 
-        markers.push({...avgPos2D(thumbTip, indexTip), handedness, dist});
-      }
-    }
+      indicators[handedness].transform.set(M4.identity());
+      indicators[handedness].transform.move(-pinchCoords.x, -pinchCoords.y, pinchCoords.z).scale(0.1);
+      if(handedness === "left") {
 
-    for (const mark of markers) {
-      const markerCoords = screenToWorld(mark);
-      if(mark.handedness == "Left") {
-        indicatorL.transform.set(M4.identity());
-        indicatorL.transform.move(-markerCoords.x, -markerCoords.y, markerCoords.z).scale(0.1);
-        let toPinch = mark.dist < 0.01;
+        // Pinching Logic
+        let toPinch = pinchDist < 0.01;
 
         if(!isPinching && toPinch) {
           for(let i = 0; i < clay.data.length; i += 6) {
@@ -87,28 +85,42 @@ window.onload = () => {
             let y = clay.data[i+1]
             let z = clay.data[i+2]
             
-            let dist = Math.pow(markerCoords.x - x, 2) + Math.pow(markerCoords.y - y, 2) + Math.pow(markerCoords.z - z, 2);
+            let dist = Math.pow(pinchCoords.x - x, 2) + Math.pow(pinchCoords.y - y, 2) + Math.pow(pinchCoords.z - z, 2);
             clayDist[Math.floor(i / 6)] = dist; 
-            handBase = {...markerCoords}
+            handBase = {...pinchCoords}
           }
         } else if(isPinching) {
           if(!toPinch) {
             clayBase = [...clay.data]
           } else {
             for(let i = 0; i < clay.data.length; i += 6) {
-              clay.data[i] = clayBase[i] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (markerCoords.x - handBase.x)
-              clay.data[i+1] = clayBase[i+1] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (markerCoords.y - handBase.y)
-              clay.data[i+2] = clayBase[i+2] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (markerCoords.z - handBase.z)
+              clay.data[i] = clayBase[i] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (pinchCoords.x - handBase.x)
+              clay.data[i+1] = clayBase[i+1] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (pinchCoords.y - handBase.y)
+              clay.data[i+2] = clayBase[i+2] + Math.max(1 - clayDist[Math.floor(i / 6)], 0) * (pinchCoords.z - handBase.z)
             }
           }
         }
 
         isPinching = toPinch;
-
-      } else if(mark.handedness == "Right") {
-        indicatorR.transform.set(M4.identity());
-        indicatorR.transform.move(-markerCoords.x, -markerCoords.y, 0).scale(0.1);
       }
+
+      if(handedness === "right") {
+
+        // CONTROL OBJECT ORIENTATION
+        
+        const z1 = Object.values(worldLandmarks[HAND.THUMB_TIP])
+        const z2 = Object.values(worldLandmarks[HAND.PINKY_TIP])
+        const y1 = Object.values(worldLandmarks[HAND.WRIST])
+        const y2 = Object.values(worldLandmarks[HAND.MIDDLE_FINGER_TIP])
+
+        const Z = V3.sub(z1, z2)
+        const Y = V3.sub(y1, y2)
+        const aimMat = M4.aim(Z, Y);
+        const reflMat = [-1,0,0,0, 0,-1,0,0, 0,0,1,0, 0,0,0,1]
+        
+        clay.transform.set(M4.nmul(reflMat, aimMat, reflMat));
+      }
+
     }
 
     caption.textContent = JSON.stringify(markers);
@@ -128,7 +140,7 @@ window.onload = () => {
     if (
       isPinching &&
       [HAND.THUMB_TIP, HAND.INDEX_FINGER_TIP].includes(idx) &&
-      handedness == "Left"
+      handedness == "left"
     ) {
       return "#00FF00";
     } else {

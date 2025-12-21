@@ -100,43 +100,52 @@ class Mediapipe {
 
     if (this._lastVideoTime !== video.currentTime) {
       this._lastVideoTime = video.currentTime;
-      this.results = this.landmarker.detectForVideo(
+      this.processResults(this.landmarker.detectForVideo(
         this.video,
         performance.now()
-      );
+      ));
     }
 
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (this.results.landmarks) {
-      for (let i = 0; i < this.results.landmarks.length; i++) {
-        const landmarks = this.results.landmarks[i];
-        const handedness = this.results.handednesses[i][0].displayName;
-        this.drawUtils.drawConnectors(
-          landmarks,
-          HandLandmarker.HAND_CONNECTIONS,
-          {
-            color: "#00FF00",
-            lineWidth: 5
-          }
-        );
+    for (const handedness in this.results) {
+      const landmarks = this.results[handedness].landmarks;
 
-        for (let j = 0; j < landmarks.length; j++) {
-          const landmark = landmarks[j]
-          const color = this.drawRule?.(j, landmark, handedness) ?? "#FF0000"
-
-          this.drawUtils.drawLandmarks([landmark], {
-            color,
-            lineWidth: 2
-          });
+      this.drawUtils.drawConnectors(
+        landmarks,
+        HandLandmarker.HAND_CONNECTIONS,
+        {
+          color: "#00FF00",
+          lineWidth: 5
         }
+      );
+
+      for (let i = 0; i < landmarks.length; i++) {
+        const landmark = landmarks[i]
+        const color = this.drawRule?.(i, landmark, handedness) ?? "#FF0000"
+
+        this.drawUtils.drawLandmarks([landmark], {
+          color,
+          lineWidth: 2
+        });
       }
     }
+
     canvasCtx.restore();
 
     if (this.running === true) {
       window.requestAnimationFrame(this.predict.bind(this));
+    }
+  }
+
+  processResults(results) {
+    this.results = {}
+    for (let i = 0; i < results.landmarks?.length ?? 0; i++) {
+      const handedness = results.handednesses[i][0].displayName.toLowerCase();
+      const landmarks = results.landmarks[i];
+      const worldLandmarks = results.worldLandmarks[i];
+      this.results[handedness] = {landmarks, worldLandmarks};
     }
   }
 }

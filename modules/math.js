@@ -1,26 +1,26 @@
 class V3 {
-  static add(a, b) { return V3(a[0] + b[0], a[1] + b[1], a[2] + b[2]) }
-  static sub(a, b) { return V3(a[0] - b[0], a[1] - b[1], a[2] - b[2]) }
-  static mul(a, b) { return V3(a[0] * b[0], a[1] * b[1], a[2] * b[2]) }
-  static div(a, b) { return V3(a[0] / b[0], a[1] / b[1], a[2] / b[2]) }
+  static add(a, b) { return [a[0] + b[0], a[1] + (b[1] ?? b[0]), a[2] + (b[2] ?? b[0])] }
+  static sub(a, b) { return [a[0] - b[0], a[1] - (b[1] ?? b[0]), a[2] - (b[2] ?? b[0])] }
+  static mul(a, b) { return [a[0] * b[0], a[1] * (b[1] ?? b[0]), a[2] * (b[2] ?? b[0])] }
+  static div(a, b) { return [a[0] / b[0], a[1] / (b[1] ?? b[0]), a[2] / (b[2] ?? b[0])] }
 
-  static cross(a, b) { return V3(a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0])};
+  static cross(a, b) { return [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]]};
   static dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] }
-  static mix(a,b,t) { return V3(a[0] + t*(b[0]-a[0]), a[1] + t*(b[1]-a[1]), a[2] + t*(b[2]-a[2])) }
+  static mix(a,b,t) { return [a[0] + t*(b[0]-a[0]), a[1] + t*(b[1]-a[1]), a[2] + t*(b[2]-a[2])] }
   static length(v) {return Math.sqrt(V3.dot(v,v));}
-  static normalize(v) { return v.div(V3.length(v)) }
+  static normalize(v) { return V3.div(v, [V3.length(v)]) }
 }
 
 class V4 {
-  static add(a, b) { return V4(a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3]) }
-  static sub(a, b) { return V4(a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]) }
-  static mul(a, b) { return V4(a[0] * b[0], a[1] * b[1], a[2] * b[2], a[3] * b[3]) }
-  static div(a, b) { return V4(a[0] / b[0], a[1] / b[1], a[2] / b[2], a[3] / b[3]) }
+  static add(a, b) { return [a[0] + b[0], a[1] + (b[1] ?? b[0]), a[2] + (b[2] ?? b[0]), a[3] + (b[3] ?? b[0])] }
+  static sub(a, b) { return [a[0] - b[0], a[1] - (b[1] ?? b[0]), a[2] - (b[2] ?? b[0]), a[3] - (b[3] ?? b[0])] }
+  static mul(a, b) { return [a[0] * b[0], a[1] * (b[1] ?? b[0]), a[2] * (b[2] ?? b[0]), a[3] * (b[3] ?? b[0])] }
+  static div(a, b) { return [a[0] / b[0], a[1] / (b[1] ?? b[0]), a[2] / (b[2] ?? b[0]), a[3] / (b[3] ?? b[0])] }
 
   static dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]}
-  static mix(a,b,t) { return V4(a[0] + t*(b[0]-a[0]), a[1] + t*(b[1]-a[1]), a[2] + t*(b[2]-a[2]), a[3] + t*(b[3]-a[3])) }
+  static mix(a,b,t) { return [a[0] + t*(b[0]-a[0]), a[1] + t*(b[1]-a[1]), a[2] + t*(b[2]-a[2]), a[3] + t*(b[3]-a[3])] }
   static length(v) {return Math.sqrt(V4.dot(v,v));}
-  static normalize(v) { return v.div(V4.length(v)) }
+  static normalize(v) { return V4.div(v, [V4.length(v)]) }
 
   static transform = (m,p) => {
    let x = p[0], y = p[1], z = p[2], w = p[3];
@@ -85,8 +85,9 @@ class M4 {
     return dst;
   }
 
-  static aim(Z) {
-    let X = V3.normalize(V3.cross([0,1,0], Z = V3.normalize(Z))), Y = V3.normalize(V3.cross(Z, X));
+  static aim(Z, Y) {
+    let X = V3.normalize(V3.cross(Y ? V3.normalize(Y) : [0,1,0], Z = V3.normalize(Z)));
+    Y = V3.normalize(V3.cross(Z, X));
     return [ X[0],X[1],X[2],0, Y[0],Y[1],Y[2],0, Z[0],Z[1],Z[2],0, 0,0,0,1 ];
   }
 
