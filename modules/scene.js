@@ -6,11 +6,11 @@ uniform mat4 uMF, uMI;
 in  vec3 aPos, aNor;
 out vec3 vPos, vNor;
 void main() {
-   vec4 pos = uMF * vec4(aPos, 1.);
-   vec4 nor = vec4(aNor, 0.) * uMI;
-   gl_Position = pos * vec4(1.,1.,-.1,1.);
-   vPos = pos.xyz;
-   vNor = nor.xyz;
+  vec4 pos = uMF * vec4(aPos, 1.);
+  vec4 nor = vec4(aNor, 0.) * uMI;
+  gl_Position = pos * vec4(1.,1.,-.1,1.);
+  vPos = pos.xyz;
+  vNor = nor.xyz;
 }`;
 
 const fShader = `\
@@ -19,12 +19,19 @@ precision highp float;
 in  vec3 vPos, vNor;
 out vec4 fragColor;
 uniform vec3 uColor;
+uniform vec3 uPinchPos;
 
 void main() {
-   vec3 nor = normalize(vNor);
-   float c = .1 + max(0., dot(vec3( .5),nor))
-                + max(0., dot(vec3(-.5),nor));
-   fragColor = vec4(c * uColor, 1.);
+  vec3 nor = normalize(vNor);
+  float c = .1 + max(0., dot(vec3( .5),nor))
+              + max(0., dot(vec3(-.5),nor));
+
+  vec3 col = c * uColor;
+
+  float dist = smoothstep(1.5, 0.3, length(uPinchPos.xy - vPos.xy)) * 0.6;
+  col = mix(col, vec3(1,.3,0), dist);
+
+  fragColor = vec4(col, 1.);
 }`;
 
 class Scene {

@@ -2,6 +2,7 @@ import { Scene } from "./modules/scene.js";
 import { Mediapipe, HAND } from "./modules/mediapipe.js";
 import { MeshMaker } from "./modules/mesh.js";
 import { M4, V3, V4 } from "./modules/math.js";
+import { setUniform } from "./modules/webgl.js";
 
 let globalRot = 0;
 let mouseX = 0;
@@ -44,17 +45,9 @@ window.onload = () => {
 
   let clay = MeshMaker.sphereMesh(20, 20);
   clay.transform.scale(-1, -1, 1);
-  clay.color = [0.8, 0.65, 0.4];
-
-  let indicators = {};
-  indicators.left = MeshMaker.rectMesh(0.1, 0.1, 0.5);
-  indicators.right = MeshMaker.rectMesh(0.1, 0.1, 0.5);
-  indicators.left.color = [0, 1, 1];
-  indicators.right.color = [0, 0, 1];
+  clay.color = [0.7, 0.7, 0.7];
 
   scene.meshes.push(clay);
-  scene.meshes.push(indicators.left);
-  scene.meshes.push(indicators.right);
 
   // PINCHING STATE
   let clayBase = [...clay.data];
@@ -62,7 +55,8 @@ window.onload = () => {
   let handBase = {};
   let isPinching = false;
   let pinchProgress = 0;
-  
+  let pinchCoords = null;
+
   // ROTATING STATE
   let currRotMat = M4.identity();
   let rotatingProgress = 0;
@@ -73,21 +67,17 @@ window.onload = () => {
       const landmarks = mp.results[handedness].landmarks;
       const worldLandmarks = mp.results[handedness].worldLandmarks;
 
-      const thumbTip = landmarks[HAND.THUMB_TIP];
-      const indexTip = landmarks[HAND.INDEX_FINGER_TIP];
-      const pinchCoords = screenToWorld(avgPos2D(thumbTip, indexTip));
-      const pinchDist =
-        Math.pow(indexTip.x - thumbTip.x, 2) +
-        Math.pow(indexTip.y - thumbTip.y, 2);
-
-      indicators[handedness].transform.set(M4.identity());
-      indicators[handedness].transform
-        .move(-pinchCoords.x, -pinchCoords.y, pinchCoords.z)
-        .scale(0.1);
       if (handedness === "left") {
         // PINCHING TO SCULPT
+        const thumbTip = landmarks[HAND.THUMB_TIP];
+        const indexTip = landmarks[HAND.INDEX_FINGER_TIP];
+        pinchCoords = screenToWorld(avgPos2D(thumbTip, indexTip));
+  
+        const pinchDist =
+          Math.pow(indexTip.x - thumbTip.x, 2) +
+          Math.pow(indexTip.y - thumbTip.y, 2);
 
-        if(pinchDist < 0.01) {
+        if (pinchDist < 0.01) {
           pinchProgress = Math.min(pinchProgress + 0.02, 1);
         } else {
           pinchProgress = Math.max(pinchProgress - 0.05, 0);
@@ -112,18 +102,14 @@ window.onload = () => {
             clayBase = [...clay.data];
           } else {
             for (let i = 0; i < clay.data.length; i += 6) {
+              let factor = Math.max(1 - clayDist[Math.floor(i / 6)], 0);
+
               clay.data[i] =
-                clayBase[i] +
-                Math.max(1 - clayDist[Math.floor(i / 6)], 0) *
-                  (pinchCoords.x - handBase.x);
+                clayBase[i] + factor * (pinchCoords.x - handBase.x);
               clay.data[i + 1] =
-                clayBase[i + 1] +
-                Math.max(1 - clayDist[Math.floor(i / 6)], 0) *
-                  (pinchCoords.y - handBase.y);
+                clayBase[i + 1] + factor * (pinchCoords.y - handBase.y);
               clay.data[i + 2] =
-                clayBase[i + 2] +
-                Math.max(1 - clayDist[Math.floor(i / 6)], 0) *
-                  (pinchCoords.z - handBase.z);
+                clayBase[i + 2] + factor * (pinchCoords.z - handBase.z);
             }
           }
         }
@@ -142,7 +128,7 @@ window.onload = () => {
         let Z = V3.sub(z1, z2);
         let Y = V3.sub(y1, y2);
 
-        if(V3.length(Y) > 0.13) {
+        if (V3.length(Y) > 0.13) {
           rotatingProgress = Math.min(rotatingProgress + 0.02, 1);
         } else {
           rotatingProgress = Math.max(rotatingProgress - 0.05, 0);
@@ -152,7 +138,6 @@ window.onload = () => {
         let newRotMat = M4.aim(Z, Y);
         let reflMat = [-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
         newRotMat = M4.nmul(reflMat, newRotMat, reflMat);
-
 
         if (!isRotating && toRotate) {
           currRotMat = newRotMat;
@@ -174,6 +159,12 @@ window.onload = () => {
 
         isRotating = toRotate;
       }
+    }
+
+    if(pinchCoords) {
+      setUniform(scene.gl, "3fv", "uPinchPos", [-pinchCoords.x, -pinchCoords.y, pinchCoords.z]);
+    } else {
+      setUniform(scene.gl, "3fv", "uPinchPos", [999,999,999]);
     }
 
     let time = Date.now() / 1000;
@@ -225,27 +216,26 @@ window.onload = () => {
         ctx.arc(
           pinchPos.x * canvas.width,
           pinchPos.y * canvas.height,
-          100,
+          40,
           0,
           Math.PI * 2
         );
-        ctx.fillStyle = `rgba(255, 0, 0, ${0.5 * pinchProgress/0.85})`;
+        ctx.fillStyle = `rgba(255, 0, 0, ${(0.5 * pinchProgress) / 0.85})`;
         ctx.fill();
 
         ctx.beginPath();
         ctx.arc(
           pinchPos.x * canvas.width,
           pinchPos.y * canvas.height,
-          100,
-          -Math.PI / 2 + Math.PI * 2 * (1-pinchProgress/0.85),
-          3 * Math.PI / 2,
+          40,
+          -Math.PI / 2 + Math.PI * 2 * (1 - pinchProgress / 0.85),
+          (3 * Math.PI) / 2
         );
         ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
         ctx.lineWidth = 10;
         ctx.lineCap = "round";
         ctx.stroke();
-      }
-      else if (handedness === "right" && rotatingProgress > 0) {
+      } else if (handedness === "right" && rotatingProgress > 0) {
         const pos = landmarks[HAND.MIDDLE_FINGER_MCP];
 
         ctx.beginPath();
@@ -256,7 +246,7 @@ window.onload = () => {
           0,
           Math.PI * 2
         );
-        ctx.fillStyle = `rgba(0, 0, 255, ${0.5 * rotatingProgress/0.85})`;
+        ctx.fillStyle = `rgba(0, 0, 255, ${(0.5 * rotatingProgress) / 0.85})`;
         ctx.fill();
 
         ctx.beginPath();
@@ -264,8 +254,8 @@ window.onload = () => {
           pos.x * canvas.width,
           pos.y * canvas.height,
           100,
-          -Math.PI / 2 + Math.PI * 2 * (1-rotatingProgress/0.85),
-          3 * Math.PI / 2,
+          -Math.PI / 2 + Math.PI * 2 * (1 - rotatingProgress / 0.85),
+          (3 * Math.PI) / 2
         );
         ctx.strokeStyle = "rgba(0, 0, 255, 0.8)";
         ctx.lineWidth = 10;
@@ -286,11 +276,7 @@ function avgPos2D(...pts) {
 }
 
 function screenToWorld(pt) {
-  let initial = { x: (pt.x - 0.5) * 10, y: (pt.y - 0.5) * 7 };
-  let rot = M4.rot(M4.Y, globalRot);
-  let vec = [initial.x, initial.y, 0, 1];
-  let res = V4.transform(rot, vec);
-  return { x: res[0], y: res[1], z: res[2] };
+  return { x: (pt.x - 0.5) * 10, y: (pt.y - 0.5) * 7, z: 0 };
 }
 function dist3(a, b, c) {
   const ab = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
