@@ -25,13 +25,13 @@ window.onload = () => {
   const scene = new Scene(glCanvas);
 
   const startBtn = document.getElementById("startBtn");
+  const btnContainer = document.getElementById("btnContainer");
   startBtn.addEventListener("click", async () => {
     if (!mp.ready && !mp.loading) {
       startBtn.disabled = true;
       startBtn.textContent = "Loading mediapipe...";
       await mp.init();
-      startBtn.textContent = "Disable mediapipe";
-      startBtn.disabled = false;
+      btnContainer.style.opacity = 0;
     } else {
       mp.toggle();
       startBtn.textContent = mp.running
@@ -39,12 +39,13 @@ window.onload = () => {
         : "Enable mediapipe";
     }
   });
-  const caption = document.getElementById("caption");
 
   scene.init();
 
   let clay = MeshMaker.sphereMesh(20, 20);
   clay.transform.scale(-1, -1, 1);
+  clay.color = [0.8, 0.65, 0.4];
+
   let indicators = {};
   indicators.left = MeshMaker.rectMesh(0.1, 0.1, 0.5);
   indicators.right = MeshMaker.rectMesh(0.1, 0.1, 0.5);
