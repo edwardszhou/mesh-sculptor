@@ -61,9 +61,11 @@ window.onload = () => {
   let clayDist = Array(clayBase.length / 6);
   let handBase = {};
   let isPinching = false;
-
+  let pinchProgress = 0;
+  
   // ROTATING STATE
   let currRotMat = M4.identity();
+  let rotatingProgress = 0;
   let isRotating = false;
 
   scene.onUpdate = () => {
@@ -84,7 +86,13 @@ window.onload = () => {
         .scale(0.1);
       if (handedness === "left") {
         // PINCHING TO SCULPT
-        let toPinch = pinchDist < 0.01;
+
+        if(pinchDist < 0.01) {
+          pinchProgress = Math.min(pinchProgress + 0.02, 1);
+        } else {
+          pinchProgress = Math.max(pinchProgress - 0.05, 0);
+        }
+        let toPinch = pinchProgress > 0.85;
 
         if (!isPinching && toPinch) {
           for (let i = 0; i < clay.data.length; i += 6) {
@@ -134,21 +142,33 @@ window.onload = () => {
         let Z = V3.sub(z1, z2);
         let Y = V3.sub(y1, y2);
 
-        let toRotate = V3.length(Z) > 0.13 && V3.length(Y) > 0.13;
+        if(V3.length(Y) > 0.13) {
+          rotatingProgress = Math.min(rotatingProgress + 0.02, 1);
+        } else {
+          rotatingProgress = Math.max(rotatingProgress - 0.05, 0);
+        }
+        let toRotate = rotatingProgress > 0.85;
+
         let newRotMat = M4.aim(Z, Y);
         let reflMat = [-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
         newRotMat = M4.nmul(reflMat, newRotMat, reflMat);
+
 
         if (!isRotating && toRotate) {
           currRotMat = newRotMat;
         } else if (isRotating) {
           if (!toRotate) {
-            clay.transform.scale(-1, -1, 1)
-            clay.data = MeshMaker.transformMeshData(clay.data, clay.transform.get())
-            clay.transform.identity().scale(-1, -1, 1)
+            clay.transform.scale(-1, -1, 1);
+            clay.data = MeshMaker.transformMeshData(
+              clay.data,
+              clay.transform.get()
+            );
+            clay.transform.identity().scale(-1, -1, 1);
             clayBase = [...clay.data];
           } else {
-            clay.transform.set(M4.nmul(newRotMat, M4.transpose(currRotMat), M4.scale(-1, -1, 1)));
+            clay.transform.set(
+              M4.nmul(newRotMat, M4.transpose(currRotMat), M4.scale(-1, -1, 1))
+            );
           }
         }
 
@@ -177,7 +197,7 @@ window.onload = () => {
     } else if (
       isRotating &&
       [
-        HAND.INDEX_FINGER_TIP,
+        HAND.MIDDLE_FINGER_TIP,
         HAND.THUMB_TIP,
         HAND.WRIST,
         HAND.PINKY_TIP
@@ -186,7 +206,72 @@ window.onload = () => {
     ) {
       return "#0048ffff";
     } else {
-      return "#FF0000";
+      return null;
+    }
+  };
+
+  mp.draw = () => {
+    const ctx = mp.canvasCtx;
+    const canvas = mp.canvas;
+
+    for (const handedness in mp.results) {
+      const landmarks = mp.results[handedness].landmarks;
+      if (handedness === "left" && pinchProgress > 0) {
+        const thumbTip = landmarks[HAND.THUMB_TIP];
+        const indexTip = landmarks[HAND.INDEX_FINGER_TIP];
+        const pinchPos = avgPos2D(indexTip, thumbTip);
+
+        ctx.beginPath();
+        ctx.arc(
+          pinchPos.x * canvas.width,
+          pinchPos.y * canvas.height,
+          100,
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = `rgba(255, 0, 0, ${0.5 * pinchProgress/0.85})`;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(
+          pinchPos.x * canvas.width,
+          pinchPos.y * canvas.height,
+          100,
+          -Math.PI / 2 + Math.PI * 2 * (1-pinchProgress/0.85),
+          3 * Math.PI / 2,
+        );
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+        ctx.lineWidth = 10;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
+      else if (handedness === "right" && rotatingProgress > 0) {
+        const pos = landmarks[HAND.MIDDLE_FINGER_MCP];
+
+        ctx.beginPath();
+        ctx.arc(
+          pos.x * canvas.width,
+          pos.y * canvas.height,
+          100,
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = `rgba(0, 0, 255, ${0.5 * rotatingProgress/0.85})`;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(
+          pos.x * canvas.width,
+          pos.y * canvas.height,
+          100,
+          -Math.PI / 2 + Math.PI * 2 * (1-rotatingProgress/0.85),
+          3 * Math.PI / 2,
+        );
+        ctx.strokeStyle = "rgba(0, 0, 255, 0.8)";
+        ctx.lineWidth = 10;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
     }
   };
 };

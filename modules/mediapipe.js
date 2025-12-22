@@ -115,22 +115,24 @@ class Mediapipe {
         landmarks,
         HandLandmarker.HAND_CONNECTIONS,
         {
-          color: "#00FF00",
+          color: "#FFFFFF",
           lineWidth: 5
         }
       );
 
       for (let i = 0; i < landmarks.length; i++) {
         const landmark = landmarks[i];
-        const color = this.drawRule?.(i, landmark, handedness) ?? "#FF0000";
+        const color = this.drawRule?.(i, landmark, handedness);
 
-        this.drawUtils.drawLandmarks([landmark], {
-          color,
-          lineWidth: 2
-        });
+        if(color) {
+          this.drawUtils.drawLandmarks([landmark], {
+            color,
+            lineWidth: 2
+          });
+        }
       }
     }
-    this.draw?.(canvasCtx);
+    this.draw?.();
     canvasCtx.restore();
 
     if (this.running === true) {
