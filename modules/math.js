@@ -1,4 +1,4 @@
-class V3 {
+export class V3 {
   static add(a, b) { return [a[0] + b[0], a[1] + (b[1] ?? b[0]), a[2] + (b[2] ?? b[0])] }
   static sub(a, b) { return [a[0] - b[0], a[1] - (b[1] ?? b[0]), a[2] - (b[2] ?? b[0])] }
   static mul(a, b) { return [a[0] * b[0], a[1] * (b[1] ?? b[0]), a[2] * (b[2] ?? b[0])] }
@@ -11,7 +11,7 @@ class V3 {
   static normalize(v) { return V3.div(v, [V3.length(v)]) }
 }
 
-class V4 {
+export class V4 {
   static add(a, b) { return [a[0] + b[0], a[1] + (b[1] ?? b[0]), a[2] + (b[2] ?? b[0]), a[3] + (b[3] ?? b[0])] }
   static sub(a, b) { return [a[0] - b[0], a[1] - (b[1] ?? b[0]), a[2] - (b[2] ?? b[0]), a[3] - (b[3] ?? b[0])] }
   static mul(a, b) { return [a[0] * b[0], a[1] * (b[1] ?? b[0]), a[2] * (b[2] ?? b[0]), a[3] * (b[3] ?? b[0])] }
@@ -33,7 +33,7 @@ class V4 {
 }
 }
 
-class M4 {
+export class M4 {
   static get X() { return 0 };
   static get Y() { return 1 };
   static get Z() { return 2 };
@@ -99,13 +99,14 @@ class M4 {
   }
 }
 
-function ease(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - t - t); }
-function sin(t) { return Math.sin(t) }
-function cos(t) { return Math.cos(t) }
-
+export function ease(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - t - t); }
+export function sin(t) { return Math.sin(t) }
+export function cos(t) { return Math.cos(t) }
+export function clamp(t, min, max) { return Math.max(min, Math.min(max, t)) }
+export function smoothstep(t, low, high) { t = clamp((t - low) / (high - low), 0, 1); return t * t * (3 - 2 * t); }
 // NESTABLE MATRIX OBJECT
 
-function Matrix() {
+export function Matrix() {
    let m = [M4.identity()], top = 0;
    this.aim         = Z       => { m[top] = M4.mul(m[top],M4.aim(Z)); return this; }
    this.call        = proc    => { proc(); return this; }
@@ -122,5 +123,3 @@ function Matrix() {
    this.transpose   = ()      => { m[top] = M4.transpose(m[top]); return this; }
    this.rot         = (axis, a) => { m[top] = M4.mul(m[top], M4.rot(axis, a)); return this; }
 }
-
-export {V3, V4, M4, Matrix}
