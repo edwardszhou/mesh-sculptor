@@ -1,10 +1,9 @@
 import { Scene } from "./modules/scene.js";
 import { Mediapipe } from "./modules/mediapipe.js";
 import { MeshMaker } from "./modules/mesh.js";
-import { M4, V3, V4 } from "./modules/math.js";
-import { setUniform } from "./modules/webgl.js";
-import { HandGesture, handScale, LM, lmAverage, lmDistance, PinchGesture } from "./modules/gesture.js";
-import { GestureTracker } from "./modules/tracker.js";
+import { M4 } from "./modules/math.js";
+import { LM } from "./modules/gesture.js";
+import { initPrototype3 } from "./modules/prototypes.js";
 
 let globalRot = 0;
 let mouseX = 0;
@@ -29,17 +28,32 @@ window.onload = () => {
 
   const startBtn = document.getElementById("startBtn");
   const btnContainer = document.getElementById("btnContainer");
+  const prototypeSelect = document.getElementById("prototypeSelect");
+
+  let gestureTracker, drawFn;
+
   startBtn.addEventListener("click", async () => {
     if (!mp.ready && !mp.loading) {
       startBtn.disabled = true;
+      prototypeSelect.disabled = true;
       startBtn.textContent = "Loading mediapipe...";
       await mp.init();
+
+      const prototypeNum = prototypeSelect.value;
+      switch(prototypeNum) {
+        case "1":
+        case "2":
+        case "3":
+          ({gestureTracker, drawFn} = initPrototype3(clay, scene))
+          break;
+      }
+      console.log(gestureTracker, drawFn)
+      mp.draw = () => drawFn(mp);
+
       btnContainer.style.opacity = 0;
     } else {
       mp.toggle();
-      startBtn.textContent = mp.running
-        ? "Disable mediapipe"
-        : "Enable mediapipe";
+      startBtn.textContent = mp.running ? "Disable mediapipe" : "Enable mediapipe";
     }
   });
 
@@ -51,76 +65,8 @@ window.onload = () => {
 
   scene.meshes.push(clay);
 
-  // PINCHING STATE
-  let clayBase = [...clay.data];
-
-  // ROTATING STATE
-  let currRotMat = M4.identity();
-  let rotatingProgress = 0;
-  let isRotating = false;
-
-  const gestureTracker = new GestureTracker()
-  const pinchGesture = new PinchGesture('pinch', [1], 0.25, 10)
-  pinchGesture.onUpdate = ({ state }, hand, h) => {
-    const pinchCoords = screenToWorld(state[h]);
-    setUniform(scene.gl, "3fv", `uPinchPos_${h}`, [-pinchCoords.x, -pinchCoords.y, pinchCoords.z]);
-  };
-
-  pinchGesture.onStart = ({state, id}, hand, h) => {
-    const pinchCoords = screenToWorld(state[h]);
-    state[h].dist = Array(clayBase.length / 6);
-
-    for (let i = 0; i < clay.data.length; i += 6) {
-      let x = clay.data[i];
-      let y = clay.data[i + 1];
-      let z = clay.data[i + 2];
-
-      let dist =
-        Math.pow(pinchCoords.x - x, 2) +
-        Math.pow(pinchCoords.y - y, 2) +
-        Math.pow(pinchCoords.z - z, 2);
-
-      state[h].dist[Math.floor(i / 6)] = dist;
-      state[h].handOrigin = { ...pinchCoords };
-    }
-  }
-
-  pinchGesture.onActive = ({state, id}, hand, h) => {
-    const pinchCoords = screenToWorld(state[h]);
-
-    for (let i = 0; i < clay.data.length; i += 6) {
-      let factor = Math.max(1 - state[h].dist[Math.floor(i / 6)], 0);
-
-      clay.data[i] =
-        clayBase[i] + factor * (pinchCoords.x - state[h].handOrigin.x);
-      clay.data[i + 1] =
-        clayBase[i + 1] + factor * (pinchCoords.y - state[h].handOrigin.y);
-      clay.data[i + 2] =
-        clayBase[i + 2] + factor * (pinchCoords.z - state[h].handOrigin.z);
-    }
-  }
-
-  pinchGesture.onEnd = ({state, id}, hand, h) => {
-    setUniform(scene.gl, "3fv", "uPinchPos", [999,999,999]);
-    clayBase = [...clay.data];
-  }
-
-  const detectRotate = (hand, h) => {
-    const scale = handScale(hand.landmarks);
-    const d1 = lmDistance(hand.landmarks, LM.WRIST, LM.MIDDLE_TIP) / scale;
-    const d2 = lmDistance(hand.landmarks, LM.PINKY_TIP, LM.THUMB_TIP) / scale;
-
-    // console.log(d1, d2);
-  }
-
-  const rotateGesture = new HandGesture("rotate", detectRotate, 10)
-
-
-  gestureTracker.add(pinchGesture)
-  gestureTracker.add(rotateGesture)
-
   scene.onUpdate = () => {
-    gestureTracker.update(mp.results)
+    gestureTracker?.update(mp.results);
     for (const h in mp.results) {
       const landmarks = mp.results[h].landmarks;
       const worldLandmarks = mp.results[h].worldLandmarks;
@@ -187,84 +133,16 @@ window.onload = () => {
   };
 
   mp.drawRule = (idx, landmark, h) => {
-    if (
-      gestureTracker.active[h]?.id === "pinch" &&
-      [LM.THUMB_TIP, LM.INDEX_TIP].includes(idx)
-    ) {
+    if (gestureTracker.active[h]?.id === "pinch" && [LM.THUMB_TIP, LM.INDEX_TIP].includes(idx)) {
       return "#00FF00";
-    } else if (
-      isRotating &&
-      [
-        LM.MIDDLE_TIP,
-        LM.THUMB_TIP,
-        LM.WRIST,
-        LM.PINKY_TIP
-      ].includes(idx) &&
-      h === "right"
-    ) {
-      return "#0048ffff";
+    // } else if (
+    //   isRotating &&
+    //   [LM.MIDDLE_TIP, LM.THUMB_TIP, LM.WRIST, LM.PINKY_TIP].includes(idx) &&
+    //   h === "right"
+    // ) {
+    //   return "#0048ffff";
     } else {
       return null;
-    }
-  };
-
-  mp.draw = () => {
-    const ctx = mp.canvasCtx;
-    const canvas = mp.canvas;
-
-    for (const h in mp.results) {
-      const landmarks = mp.results[h].landmarks;
-      const pinchConfidence = pinchGesture.confidence[h] / pinchGesture.activationThreshold;
-      if (pinchConfidence > 0) {
-        ctx.beginPath();
-        ctx.arc(
-          pinchGesture.state[h].x * canvas.width,
-          pinchGesture.state[h].y * canvas.height,
-          40,
-          0,
-          Math.PI * 2
-        );
-        ctx.fillStyle = `rgba(255, 0, 0, ${(0.5 * pinchConfidence) / 0.85})`;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(
-          pinchGesture.state[h].x * canvas.width,
-          pinchGesture.state[h].y * canvas.height,
-          40,
-          -Math.PI / 2 + Math.PI * 2 * (1 - pinchConfidence / 0.85),
-          (3 * Math.PI) / 2
-        );
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
-        ctx.lineWidth = 10;
-        ctx.lineCap = "round";
-        ctx.stroke();
-      } else if (h === "right" && rotatingProgress > 0) {
-        const pos = landmarks[LM.MIDDLE_MCP];
-
-        ctx.beginPath();
-        ctx.arc(
-          pos.x * canvas.width,
-          pos.y * canvas.height,
-          100,
-          0,
-          Math.PI * 2
-        );
-        ctx.fillStyle = `rgba(0, 0, 255, ${(0.5 * rotatingProgress) / 0.85})`;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(
-          pos.x * canvas.width,
-          pos.y * canvas.height,
-          100,
-          -Math.PI / 2 + Math.PI * 2 * (1 - rotatingProgress / 0.85),
-          (3 * Math.PI) / 2
-        );
-        ctx.strokeStyle = "rgba(0, 0, 255, 0.8)";
-        ctx.lineWidth = 10;
-        ctx.lineCap = "round";
-        ctx.stroke();
-      }
     }
   };
 };
@@ -278,9 +156,7 @@ function avgPos2D(...pts) {
   return res;
 }
 
-function screenToWorld(pt) {
-  return { x: (pt.x - 0.5) * 10, y: (pt.y - 0.5) * 7, z: 0 };
-}
+
 function dist3(a, b, c) {
   const ab = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
   const bc = Math.pow(b.x - c.x, 2) + Math.pow(b.y - c.y, 2);

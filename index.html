@@ -1,20 +1,7 @@
 <body bgcolor="black" style="margin: 0">
   <script type="module" src="main.js"></script>
-  <video
-    id="webcam"
-    style="position: absolute"
-    autoplay
-    playsinline
-    hidden
-  ></video>
-  <div
-    style="
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    "
-  >
+  <video id="webcam" style="position: absolute" autoplay playsinline hidden></video>
+  <div style="display: flex; justify-content: center; align-items: center; flex-direction: column">
     <canvas id="canvas" width="800" height="800"></canvas>
     <canvas
       id="mediapipe_canvas"
@@ -38,13 +25,33 @@
       transition: all;
       transition-duration: 500ms;
       opacity: 1;
+      gap: 32px;
     "
   >
-    <h1 style="color: rgb(255, 196, 0); font-family: sans-serif; font-size: 3rem;">Mesh Sculptor</h1>
+    <h1 style="color: rgb(255, 196, 0); font-family: sans-serif; font-size: 3rem">Mesh Sculptor</h1>
+    <select
+      name="prototypes"
+      id="prototypeSelect"
+      style="
+        font-size: 1.5rem;
+        border-radius: 12px;
+        padding: 1rem;
+        border: none;
+        transition: all;
+        transition-duration: 500ms;
+        opacity: 1;
+      "
+    >
+      <option value="1">Prototype 1</option>
+      <option value="2">Prototype 2</option>
+      <option value="3">Prototype 3</option>
+    </select>
     <button
       id="startBtn"
       style="
         font-size: 1.5rem;
+        font-weight: 700;
+        background-color: rgb(255, 196, 0);
         border-radius: 12px;
         padding: 1rem;
         border: none;
