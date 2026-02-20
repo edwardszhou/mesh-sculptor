@@ -3,7 +3,7 @@ import { Mediapipe } from "./modules/mediapipe.js";
 import { MeshMaker } from "./modules/mesh.js";
 import { M4 } from "./modules/math.js";
 import { LM } from "./modules/gesture.js";
-import { initPrototype1, initPrototype3 } from "./modules/prototypes.js";
+import { initPrototype1, initPrototype2, initPrototype3 } from "./modules/prototypes.js";
 
 let globalRot = 0;
 let mouseX = 0;
@@ -45,6 +45,8 @@ window.onload = () => {
           ({gestureTracker, drawFn} = initPrototype1(clay, scene))
           break;
         case "2":
+          ({gestureTracker, drawFn} = initPrototype2(clay, scene))
+          break;
         case "3":
           ({gestureTracker, drawFn} = initPrototype3(clay, scene))
           break;
@@ -69,69 +71,13 @@ window.onload = () => {
 
   scene.onUpdate = () => {
     gestureTracker?.update(mp.results);
-    for (const h in mp.results) {
-      const landmarks = mp.results[h].landmarks;
-      const worldLandmarks = mp.results[h].worldLandmarks;
-
-      // if (h === "right") {
-      //   // CONTROL OBJECT ORIENTATION
-
-      //   let z1 = Object.values(worldLandmarks[HAND.THUMB_TIP]);
-      //   let z2 = Object.values(worldLandmarks[HAND.PINKY_TIP]);
-      //   let y1 = Object.values(worldLandmarks[HAND.WRIST]);
-      //   let y2 = Object.values(worldLandmarks[HAND.MIDDLE_FINGER_TIP]);
-
-      //   let Z = V3.sub(z1, z2);
-      //   let Y = V3.sub(y1, y2);
-
-      //   if (V3.length(Y) > 0.13) {
-      //     rotatingProgress = Math.min(rotatingProgress + 0.02, 1);
-      //   } else {
-      //     rotatingProgress = Math.max(rotatingProgress - 0.05, 0);
-      //   }
-      //   let toRotate = rotatingProgress > 0.85;
-
-      //   let newRotMat = M4.aim(Z, Y);
-      //   let reflMat = [-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-      //   newRotMat = M4.nmul(reflMat, newRotMat, reflMat);
-
-      //   if (!isRotating && toRotate) {
-      //     currRotMat = newRotMat;
-      //   } else if (isRotating) {
-      //     if (!toRotate) {
-      //       clay.transform.scale(-1, -1, 1);
-      //       clay.data = MeshMaker.transformMeshData(
-      //         clay.data,
-      //         clay.transform.get()
-      //       );
-      //       clay.transform.identity().scale(-1, -1, 1);
-      //       clayBase = [...clay.data];
-      //     } else {
-      //       clay.transform.set(
-      //         M4.nmul(newRotMat, M4.transpose(currRotMat), M4.scale(-1, -1, 1))
-      //       );
-      //     }
-      //   }
-
-      //   isRotating = toRotate;
-      // }
-    }
-
-    // if(pinchCoords) {
-    //   setUniform(scene.gl, "3fv", "uPinchPos", [-pinchCoords.x, -pinchCoords.y, pinchCoords.z]);
-    // } else {
-    //   setUniform(scene.gl, "3fv", "uPinchPos", [999,999,999]);
-    // }
-
     let rot = gestureTracker?.gestures[0]?.gesture.state.globalRot ?? 0;
-    
-    let time = Date.now() / 1000;
+
     let camT = M4.nmul(
       M4.perspective(0, 0, -0.5),
       M4.rot(M4.X, -0.3),
       M4.move(0, -1.5, -5),
       M4.rot(M4.Y, rot)
-      //M4.rot(M4.Y, (time * Math.PI * 2) / 8)
     );
     return camT;
   };
@@ -139,12 +85,11 @@ window.onload = () => {
   mp.drawRule = (idx, landmark, h) => {
     if (gestureTracker?.active[h]?.id === "pinch" && [LM.THUMB_TIP, LM.INDEX_TIP].includes(idx)) {
       return "#00FF00";
-    // } else if (
-    //   isRotating &&
-    //   [LM.MIDDLE_TIP, LM.THUMB_TIP, LM.WRIST, LM.PINKY_TIP].includes(idx) &&
-    //   h === "right"
-    // ) {
-    //   return "#0048ffff";
+    } else if (
+      gestureTracker?.active[h]?.id === "rotate" &&
+      [LM.MIDDLE_TIP, LM.THUMB_TIP, LM.WRIST, LM.PINKY_TIP].includes(idx)
+    ) {
+      return "#0048ffff";
     } else {
       return null;
     }
