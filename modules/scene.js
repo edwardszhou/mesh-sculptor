@@ -19,7 +19,8 @@ precision highp float;
 in  vec3 vPos, vNor;
 out vec4 fragColor;
 uniform vec3 uColor;
-uniform vec3 uPinchPos;
+uniform vec3 uPinchPos_left;
+uniform vec3 uPinchPos_right;
 
 void main() {
   vec3 nor = normalize(vNor);
@@ -28,8 +29,9 @@ void main() {
 
   vec3 col = c * uColor;
 
-  float dist = smoothstep(1.5, 0.3, length(uPinchPos.xy - vPos.xy)) * 0.6;
-  col = mix(col, vec3(1,.3,0), dist);
+  float dist1 = smoothstep(1.5, 0.3, length(uPinchPos_left.xy - vPos.xy)) * 0.6;
+  float dist2 = smoothstep(1.5, 0.3, length(uPinchPos_right.xy - vPos.xy)) * 0.6;
+  col = mix(col, vec3(1,.3,0), max(dist1, dist2));
 
   fragColor = vec4(col, 1.);
 }`;

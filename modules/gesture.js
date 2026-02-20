@@ -1,4 +1,4 @@
-import { clamp } from "../../math/math.js";
+import { clamp } from "./math.js";
 
 export const LM = Object.freeze({
   WRIST: 0,
@@ -34,6 +34,7 @@ export class HandGesture {
     this.activationThreshold = activationThreshold;
     this.activeCooldown = activeCooldown;
 
+    this.onUpdate = () => {};
     this.onStart = () => {};
     this.onEnd = () => {};
     this.onActive = () => {};
@@ -45,39 +46,42 @@ export class HandGesture {
     this.isActive = { left: false, right: false };
   }
 
-  update(hand, silent = false, timestamp = Date.now()) {
-    const h = hand.handedness;
-    const conditionMet = this.conditionFn(hand);
+  update(hand, h, silent = false, timestamp = Date.now()) {
+    const conditionMet = this.conditionFn(hand, h);
 
     this.confidence[h] += conditionMet ? 1 : -1.5;
     this.confidence[h] = clamp(this.confidence[h], 0, this.activationThreshold);
+    this._onUpdate(hand, h)
 
     if (silent) return false;
 
     if (!this.isActive[h] && this.confidence[h] >= this.activationThreshold) {
       this.isActive[h] = true;
-      this._onStart?.(hand);
+      this._onStart(hand, h);
     } else if (this.isActive[h] && this.confidence[h] == 0) {
       this.isActive[h] = false;
-      this._onEnd?.(hand);
+      this._onEnd(hand, h);
     }
 
     if (this.isActive[h] && timestamp - this.lastActiveTime[h] > this.activeCooldown) {
       this.lastActiveTime[h] = timestamp;
-      this._onActive?.(hand);
+      this._onActive(hand, h);
     }
 
     return this.isActive[h];
   }
 
-  _onStart(hand) {
-    this.onStart?.(this, hand);
+  _onUpdate(hand, h) {
+    this.onUpdate?.(this, hand, h);
   }
-  _onEnd(hand) {
-    this.onEnd?.(this, hand);
+  _onStart(hand, h) {
+    this.onStart?.(this, hand, h);
   }
-  _onActive(hand) {
-    this.onActive?.(this, hand);
+  _onEnd(hand, h) {
+    this.onEnd?.(this, hand, h);
+  }
+  _onActive(hand, h) {
+    this.onActive?.(this, hand, h);
   }
 }
 
@@ -106,31 +110,30 @@ export class MotionGesture {
     };
   }
 
-  update(hand, silent = false, timestamp = Date.now()) {
-    const h = hand.handedness;
+  update(hand, h, silent = false, timestamp = Date.now()) {
     if (silent || timestamp - this.lastTrigger[h] < this.triggerCooldown) return;
 
     if (this.conditionFnB(hand)) {
       if (timestamp - this.lastA[h] < this.maxTimeInterval) {
-        this._onTriggerAB(this, hand);
+        this._onTriggerAB(this, hand, h);
         this.lastTrigger[h] = timestamp;
       }
       this.lastB[h] = timestamp;
     }
     if (this.conditionFnA(hand)) {
       if (timestamp - this.lastB[h] < this.maxTimeInterval) {
-        this._onTriggerBA(this, hand);
+        this._onTriggerBA(this, hand, h);
         this.lastTrigger[h] = timestamp;
       }
       this.lastA[h] = timestamp;
     }
   }
 
-  _onTriggerAB(hand) {
-    this.onTriggerAB?.(this, hand);
+  _onTriggerAB(hand, h) {
+    this.onTriggerAB?.(this, hand, h);
   }
-  _onTriggerBA(hand) {
-    this.onTriggerBA?.(this, hand);
+  _onTriggerBA(hand, h) {
+    this.onTriggerBA?.(this, hand, h);
   }
 }
 
@@ -145,27 +148,16 @@ export class PinchGesture extends HandGesture {
     this.fingers = fingers;
   }
 
-  updateState(hand) {
-    const h = hand.handedness;
+  updateState(hand, h) {
     const indices = this.fingers.map(f => LM.TIPS[f]);
     const newState = lmAverage(hand.landmarks, [LM.THUMB_TIP, ...indices])
     this.state[h] = {...this.state[h], ...newState};
     this.state[h].duration = (this.state[h]?.duration ?? 0) + 1
   }
 
-  _onStart(hand) {
-    this.updateState(hand);
-    super._onStart(hand);
-  }
-
-  _onEnd(hand) {
-    super._onEnd(hand);
-    this.state[hand.handedness] = {};
-  }
-
-  _onActive(hand) {
-    this.updateState(hand);
-    super._onActive(hand);
+  _onUpdate(hand, h) {
+    this.updateState(hand, h)
+    super._onUpdate(hand, h)
   }
 }
 

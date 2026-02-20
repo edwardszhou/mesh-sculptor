@@ -1,8 +1,10 @@
 import { Scene } from "./modules/scene.js";
-import { Mediapipe, HAND } from "./modules/mediapipe.js";
+import { Mediapipe } from "./modules/mediapipe.js";
 import { MeshMaker } from "./modules/mesh.js";
 import { M4, V3, V4 } from "./modules/math.js";
 import { setUniform } from "./modules/webgl.js";
+import { HandGesture, handScale, LM, lmAverage, lmDistance, PinchGesture } from "./modules/gesture.js";
+import { GestureTracker } from "./modules/tracker.js";
 
 let globalRot = 0;
 let mouseX = 0;
@@ -51,121 +53,127 @@ window.onload = () => {
 
   // PINCHING STATE
   let clayBase = [...clay.data];
-  let clayDist = Array(clayBase.length / 6);
-  let handBase = {};
-  let isPinching = false;
-  let pinchProgress = 0;
-  let pinchCoords = null;
 
   // ROTATING STATE
   let currRotMat = M4.identity();
   let rotatingProgress = 0;
   let isRotating = false;
 
+  const gestureTracker = new GestureTracker()
+  const pinchGesture = new PinchGesture('pinch', [1], 0.25, 10)
+  pinchGesture.onUpdate = ({ state }, hand, h) => {
+    const pinchCoords = screenToWorld(state[h]);
+    setUniform(scene.gl, "3fv", `uPinchPos_${h}`, [-pinchCoords.x, -pinchCoords.y, pinchCoords.z]);
+  };
+
+  pinchGesture.onStart = ({state, id}, hand, h) => {
+    const pinchCoords = screenToWorld(state[h]);
+    state[h].dist = Array(clayBase.length / 6);
+
+    for (let i = 0; i < clay.data.length; i += 6) {
+      let x = clay.data[i];
+      let y = clay.data[i + 1];
+      let z = clay.data[i + 2];
+
+      let dist =
+        Math.pow(pinchCoords.x - x, 2) +
+        Math.pow(pinchCoords.y - y, 2) +
+        Math.pow(pinchCoords.z - z, 2);
+
+      state[h].dist[Math.floor(i / 6)] = dist;
+      state[h].handOrigin = { ...pinchCoords };
+    }
+  }
+
+  pinchGesture.onActive = ({state, id}, hand, h) => {
+    const pinchCoords = screenToWorld(state[h]);
+
+    for (let i = 0; i < clay.data.length; i += 6) {
+      let factor = Math.max(1 - state[h].dist[Math.floor(i / 6)], 0);
+
+      clay.data[i] =
+        clayBase[i] + factor * (pinchCoords.x - state[h].handOrigin.x);
+      clay.data[i + 1] =
+        clayBase[i + 1] + factor * (pinchCoords.y - state[h].handOrigin.y);
+      clay.data[i + 2] =
+        clayBase[i + 2] + factor * (pinchCoords.z - state[h].handOrigin.z);
+    }
+  }
+
+  pinchGesture.onEnd = ({state, id}, hand, h) => {
+    setUniform(scene.gl, "3fv", "uPinchPos", [999,999,999]);
+    clayBase = [...clay.data];
+  }
+
+  const detectRotate = (hand, h) => {
+    const scale = handScale(hand.landmarks);
+    const d1 = lmDistance(hand.landmarks, LM.WRIST, LM.MIDDLE_TIP) / scale;
+    const d2 = lmDistance(hand.landmarks, LM.PINKY_TIP, LM.THUMB_TIP) / scale;
+
+    // console.log(d1, d2);
+  }
+
+  const rotateGesture = new HandGesture("rotate", detectRotate, 10)
+
+
+  gestureTracker.add(pinchGesture)
+  gestureTracker.add(rotateGesture)
+
   scene.onUpdate = () => {
-    for (const handedness in mp.results) {
-      const landmarks = mp.results[handedness].landmarks;
-      const worldLandmarks = mp.results[handedness].worldLandmarks;
+    gestureTracker.update(mp.results)
+    for (const h in mp.results) {
+      const landmarks = mp.results[h].landmarks;
+      const worldLandmarks = mp.results[h].worldLandmarks;
 
-      if (handedness === "left") {
-        // PINCHING TO SCULPT
-        const thumbTip = landmarks[HAND.THUMB_TIP];
-        const indexTip = landmarks[HAND.INDEX_FINGER_TIP];
-        pinchCoords = screenToWorld(avgPos2D(thumbTip, indexTip));
-  
-        const pinchDist =
-          Math.pow(indexTip.x - thumbTip.x, 2) +
-          Math.pow(indexTip.y - thumbTip.y, 2);
+      // if (h === "right") {
+      //   // CONTROL OBJECT ORIENTATION
 
-        if (pinchDist < 0.01) {
-          pinchProgress = Math.min(pinchProgress + 0.02, 1);
-        } else {
-          pinchProgress = Math.max(pinchProgress - 0.05, 0);
-        }
-        let toPinch = pinchProgress > 0.85;
+      //   let z1 = Object.values(worldLandmarks[HAND.THUMB_TIP]);
+      //   let z2 = Object.values(worldLandmarks[HAND.PINKY_TIP]);
+      //   let y1 = Object.values(worldLandmarks[HAND.WRIST]);
+      //   let y2 = Object.values(worldLandmarks[HAND.MIDDLE_FINGER_TIP]);
 
-        if (!isPinching && toPinch) {
-          for (let i = 0; i < clay.data.length; i += 6) {
-            let x = clay.data[i];
-            let y = clay.data[i + 1];
-            let z = clay.data[i + 2];
+      //   let Z = V3.sub(z1, z2);
+      //   let Y = V3.sub(y1, y2);
 
-            let dist =
-              Math.pow(pinchCoords.x - x, 2) +
-              Math.pow(pinchCoords.y - y, 2) +
-              Math.pow(pinchCoords.z - z, 2);
-            clayDist[Math.floor(i / 6)] = dist;
-            handBase = { ...pinchCoords };
-          }
-        } else if (isPinching) {
-          if (!toPinch) {
-            clayBase = [...clay.data];
-          } else {
-            for (let i = 0; i < clay.data.length; i += 6) {
-              let factor = Math.max(1 - clayDist[Math.floor(i / 6)], 0);
+      //   if (V3.length(Y) > 0.13) {
+      //     rotatingProgress = Math.min(rotatingProgress + 0.02, 1);
+      //   } else {
+      //     rotatingProgress = Math.max(rotatingProgress - 0.05, 0);
+      //   }
+      //   let toRotate = rotatingProgress > 0.85;
 
-              clay.data[i] =
-                clayBase[i] + factor * (pinchCoords.x - handBase.x);
-              clay.data[i + 1] =
-                clayBase[i + 1] + factor * (pinchCoords.y - handBase.y);
-              clay.data[i + 2] =
-                clayBase[i + 2] + factor * (pinchCoords.z - handBase.z);
-            }
-          }
-        }
+      //   let newRotMat = M4.aim(Z, Y);
+      //   let reflMat = [-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+      //   newRotMat = M4.nmul(reflMat, newRotMat, reflMat);
 
-        isPinching = toPinch;
-      }
+      //   if (!isRotating && toRotate) {
+      //     currRotMat = newRotMat;
+      //   } else if (isRotating) {
+      //     if (!toRotate) {
+      //       clay.transform.scale(-1, -1, 1);
+      //       clay.data = MeshMaker.transformMeshData(
+      //         clay.data,
+      //         clay.transform.get()
+      //       );
+      //       clay.transform.identity().scale(-1, -1, 1);
+      //       clayBase = [...clay.data];
+      //     } else {
+      //       clay.transform.set(
+      //         M4.nmul(newRotMat, M4.transpose(currRotMat), M4.scale(-1, -1, 1))
+      //       );
+      //     }
+      //   }
 
-      if (handedness === "right") {
-        // CONTROL OBJECT ORIENTATION
-
-        let z1 = Object.values(worldLandmarks[HAND.THUMB_TIP]);
-        let z2 = Object.values(worldLandmarks[HAND.PINKY_TIP]);
-        let y1 = Object.values(worldLandmarks[HAND.WRIST]);
-        let y2 = Object.values(worldLandmarks[HAND.MIDDLE_FINGER_TIP]);
-
-        let Z = V3.sub(z1, z2);
-        let Y = V3.sub(y1, y2);
-
-        if (V3.length(Y) > 0.13) {
-          rotatingProgress = Math.min(rotatingProgress + 0.02, 1);
-        } else {
-          rotatingProgress = Math.max(rotatingProgress - 0.05, 0);
-        }
-        let toRotate = rotatingProgress > 0.85;
-
-        let newRotMat = M4.aim(Z, Y);
-        let reflMat = [-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-        newRotMat = M4.nmul(reflMat, newRotMat, reflMat);
-
-        if (!isRotating && toRotate) {
-          currRotMat = newRotMat;
-        } else if (isRotating) {
-          if (!toRotate) {
-            clay.transform.scale(-1, -1, 1);
-            clay.data = MeshMaker.transformMeshData(
-              clay.data,
-              clay.transform.get()
-            );
-            clay.transform.identity().scale(-1, -1, 1);
-            clayBase = [...clay.data];
-          } else {
-            clay.transform.set(
-              M4.nmul(newRotMat, M4.transpose(currRotMat), M4.scale(-1, -1, 1))
-            );
-          }
-        }
-
-        isRotating = toRotate;
-      }
+      //   isRotating = toRotate;
+      // }
     }
 
-    if(pinchCoords) {
-      setUniform(scene.gl, "3fv", "uPinchPos", [-pinchCoords.x, -pinchCoords.y, pinchCoords.z]);
-    } else {
-      setUniform(scene.gl, "3fv", "uPinchPos", [999,999,999]);
-    }
+    // if(pinchCoords) {
+    //   setUniform(scene.gl, "3fv", "uPinchPos", [-pinchCoords.x, -pinchCoords.y, pinchCoords.z]);
+    // } else {
+    //   setUniform(scene.gl, "3fv", "uPinchPos", [999,999,999]);
+    // }
 
     let time = Date.now() / 1000;
     let camT = M4.nmul(
@@ -178,22 +186,21 @@ window.onload = () => {
     return camT;
   };
 
-  mp.drawRule = (idx, landmark, handedness) => {
+  mp.drawRule = (idx, landmark, h) => {
     if (
-      isPinching &&
-      [HAND.THUMB_TIP, HAND.INDEX_FINGER_TIP].includes(idx) &&
-      handedness === "left"
+      gestureTracker.active[h]?.id === "pinch" &&
+      [LM.THUMB_TIP, LM.INDEX_TIP].includes(idx)
     ) {
       return "#00FF00";
     } else if (
       isRotating &&
       [
-        HAND.MIDDLE_FINGER_TIP,
-        HAND.THUMB_TIP,
-        HAND.WRIST,
-        HAND.PINKY_TIP
+        LM.MIDDLE_TIP,
+        LM.THUMB_TIP,
+        LM.WRIST,
+        LM.PINKY_TIP
       ].includes(idx) &&
-      handedness === "right"
+      h === "right"
     ) {
       return "#0048ffff";
     } else {
@@ -205,38 +212,34 @@ window.onload = () => {
     const ctx = mp.canvasCtx;
     const canvas = mp.canvas;
 
-    for (const handedness in mp.results) {
-      const landmarks = mp.results[handedness].landmarks;
-      if (handedness === "left" && pinchProgress > 0) {
-        const thumbTip = landmarks[HAND.THUMB_TIP];
-        const indexTip = landmarks[HAND.INDEX_FINGER_TIP];
-        const pinchPos = avgPos2D(indexTip, thumbTip);
-
+    for (const h in mp.results) {
+      const landmarks = mp.results[h].landmarks;
+      const pinchConfidence = pinchGesture.confidence[h] / pinchGesture.activationThreshold;
+      if (pinchConfidence > 0) {
         ctx.beginPath();
         ctx.arc(
-          pinchPos.x * canvas.width,
-          pinchPos.y * canvas.height,
+          pinchGesture.state[h].x * canvas.width,
+          pinchGesture.state[h].y * canvas.height,
           40,
           0,
           Math.PI * 2
         );
-        ctx.fillStyle = `rgba(255, 0, 0, ${(0.5 * pinchProgress) / 0.85})`;
+        ctx.fillStyle = `rgba(255, 0, 0, ${(0.5 * pinchConfidence) / 0.85})`;
         ctx.fill();
-
         ctx.beginPath();
         ctx.arc(
-          pinchPos.x * canvas.width,
-          pinchPos.y * canvas.height,
+          pinchGesture.state[h].x * canvas.width,
+          pinchGesture.state[h].y * canvas.height,
           40,
-          -Math.PI / 2 + Math.PI * 2 * (1 - pinchProgress / 0.85),
+          -Math.PI / 2 + Math.PI * 2 * (1 - pinchConfidence / 0.85),
           (3 * Math.PI) / 2
         );
         ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
         ctx.lineWidth = 10;
         ctx.lineCap = "round";
         ctx.stroke();
-      } else if (handedness === "right" && rotatingProgress > 0) {
-        const pos = landmarks[HAND.MIDDLE_FINGER_MCP];
+      } else if (h === "right" && rotatingProgress > 0) {
+        const pos = landmarks[LM.MIDDLE_MCP];
 
         ctx.beginPath();
         ctx.arc(

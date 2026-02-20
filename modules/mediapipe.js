@@ -4,33 +4,6 @@ import {
   DrawingUtils
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
-const HAND = {
-  WRIST: 0,
-  THUMB_CMC: 1,
-  THUMB_MCP: 2,
-  THUMB_IP: 3,
-  THUMB_TIP: 4,
-
-  INDEX_FINGER_MCP: 5,
-  INDEX_FINGER_PIP: 6,
-  INDEX_FINGER_DIP: 7,
-  INDEX_FINGER_TIP: 8,
-
-  MIDDLE_FINGER_MCP: 9,
-  MIDDLE_FINGER_PIP: 10,
-  MIDDLE_FINGER_DIP: 11,
-  MIDDLE_FINGER_TIP: 12,
-
-  RING_FINGER_MCP: 13,
-  RING_FINGER_PIP: 14,
-  RING_FINGER_DIP: 15,
-  RING_FINGER_TIP: 16,
-
-  PINKY_MCP: 17,
-  PINKY_PIP: 18,
-  PINKY_DIP: 19,
-  PINKY_TIP: 20
-};
 class Mediapipe {
   constructor(canvas, video) {
     this.canvas = canvas;
@@ -150,13 +123,14 @@ class Mediapipe {
     }
 
     for (const hand in newResults) {
-      if (!this.results[hand]) continue;
+      if (!this.results || !this.results[hand]) continue;
       for (let i = 0; i < newResults[hand].landmarks.length; i++) {
         let oldLm = this.results[hand].landmarks[i];
         let newLm = newResults[hand].landmarks[i];
         newResults[hand].landmarks[i] = { 
           x: (oldLm.x + newLm.x) / 2,
           y: (oldLm.y + newLm.y) / 2,
+          z: (oldLm.z + newLm.z) / 2,
         };
 
         let oldWlm = this.results[hand].worldLandmarks[i];
@@ -173,4 +147,4 @@ class Mediapipe {
   }
 }
 
-export { Mediapipe, HAND };
+export { Mediapipe };

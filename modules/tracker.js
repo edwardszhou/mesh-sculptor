@@ -25,12 +25,12 @@ export class GestureTracker {
     this.active["left"] = null;
     this.active["right"] = null;
 
-    for (const hand of hands) {
-      const h = hand.handedness;
+    for (const h in hands) {
+      const hand = hands[h];
       for (const { gesture, handedness } of this.gestures) {
         if (handedness && handedness !== h) continue;
-        if (this.active[h]) gesture.update(hand, true, now);
-        else this.active[h] = gesture.update(hand, false, now) ? gesture : null;
+        if (this.active[h]) gesture.update(hand, h, true, now);
+        else this.active[h] = gesture.update(hand, h, false, now) ? gesture : null;
       }
     }
   }
