@@ -3,7 +3,7 @@ import { Mediapipe } from "./modules/mediapipe.js";
 import { MeshMaker } from "./modules/mesh.js";
 import { M4 } from "./modules/math.js";
 import { LM } from "./modules/gesture.js";
-import { initPrototype3 } from "./modules/prototypes.js";
+import { initPrototype1, initPrototype3 } from "./modules/prototypes.js";
 
 let globalRot = 0;
 let mouseX = 0;
@@ -42,6 +42,8 @@ window.onload = () => {
       const prototypeNum = prototypeSelect.value;
       switch(prototypeNum) {
         case "1":
+          ({gestureTracker, drawFn} = initPrototype1(clay, scene))
+          break;
         case "2":
         case "3":
           ({gestureTracker, drawFn} = initPrototype3(clay, scene))
@@ -121,19 +123,21 @@ window.onload = () => {
     //   setUniform(scene.gl, "3fv", "uPinchPos", [999,999,999]);
     // }
 
+    let rot = gestureTracker?.gestures[0]?.gesture.state.globalRot ?? 0;
+    
     let time = Date.now() / 1000;
     let camT = M4.nmul(
       M4.perspective(0, 0, -0.5),
       M4.rot(M4.X, -0.3),
       M4.move(0, -1.5, -5),
-      M4.rot(M4.Y, globalRot)
+      M4.rot(M4.Y, rot)
       //M4.rot(M4.Y, (time * Math.PI * 2) / 8)
     );
     return camT;
   };
 
   mp.drawRule = (idx, landmark, h) => {
-    if (gestureTracker.active[h]?.id === "pinch" && [LM.THUMB_TIP, LM.INDEX_TIP].includes(idx)) {
+    if (gestureTracker?.active[h]?.id === "pinch" && [LM.THUMB_TIP, LM.INDEX_TIP].includes(idx)) {
       return "#00FF00";
     // } else if (
     //   isRotating &&

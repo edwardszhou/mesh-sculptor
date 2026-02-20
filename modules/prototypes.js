@@ -5,21 +5,61 @@ import {
 } from "./gesture.js";
 import { GestureTracker } from "./tracker.js";
 
+export function initPrototype1(clay, scene) {
+  return { gestureTracker: null, drawFn: () => {} }
+}
+
 export function initPrototype3(clay, scene) {
+  const modeLabel = document.createElement('h3')
+  modeLabel.textContent = "Edit Mode";
+  modeLabel.style.position = "absolute";
+  modeLabel.style.top = "0px";
+  modeLabel.style.left = "50%";
+  modeLabel.style.transform = "translateX(-50%)"
+  modeLabel.style.padding = "16px";
+  modeLabel.style.borderRadius = "8px";
+  modeLabel.style.fontFamily = "sans-serif";
+  modeLabel.style.color = "rgb(255, 196, 0)";
+  modeLabel.style.backgroundColor = "rgba(255 196 0 / 0.2)";
+  document.body.appendChild(modeLabel)
+
+  let isViewing = false;
+
   // PINCHING STATE
   let clayBase = [...clay.data];
+  let lastState = null;
 
   setUniform(scene.gl, "3fv", "uPinchPos_left", [999, 999, 999]);
   setUniform(scene.gl, "3fv", "uPinchPos_right", [999, 999, 999]);
 
+  function toggleMode() {
+    if(!isViewing) {
+      isViewing = true;
+      modeLabel.textContent = "Navigation Mode";
+      modeLabel.style.color = "rgb(245, 156, 173)";
+      modeLabel.style.backgroundColor = "rgba(245 156 173 / 0.2)";
+    } else {
+      isViewing = false;
+      modeLabel.textContent = "Edit Mode";
+      modeLabel.style.color = "rggb(255, 196, 0)";
+      modeLabel.style.backgroundColor = "rgba(255 196 0 / 0.2)";
+    }
+  }
+
   const gestureTracker = new GestureTracker();
   const pinchGesture = new PinchGesture("pinch", [1], 0.25, 10);
   pinchGesture.onUpdate = ({ state }, hand, h) => {
+    if(isViewing) return;
+
     const pinchCoords = screenToWorld(state[h]);
     setUniform(scene.gl, "3fv", `uPinchPos_${h}`, [-pinchCoords.x, -pinchCoords.y, pinchCoords.z]);
   };
 
   pinchGesture.onStart = ({ state, id }, hand, h) => {
+    if(state[h].y < 0.1 && state[h].x > 0.4 && state[h].x < 0.6) toggleMode();
+    
+    if(isViewing) return;
+    
     const pinchCoords = screenToWorld(state[h]);
     state[h].dist = Array(clayBase.length / 6);
 
@@ -39,8 +79,16 @@ export function initPrototype3(clay, scene) {
   };
 
   pinchGesture.onActive = ({ state, id }, hand, h) => {
-    const pinchCoords = screenToWorld(state[h]);
+    if(isViewing) {
+      state.globalRot ??= 0;
+      if(lastState) {
+        state.globalRot -= 10 * (state[h].x - lastState[h].x)
+      }
+      lastState = {...state}
+      return;
+    }
 
+    const pinchCoords = screenToWorld(state[h]);
     for (let i = 0; i < clay.data.length; i += 6) {
       let factor = Math.max(1 - state[h].dist[Math.floor(i / 6)], 0);
 
@@ -51,6 +99,11 @@ export function initPrototype3(clay, scene) {
   };
 
   pinchGesture.onEnd = ({ state, id }, hand, h) => {
+    if(isViewing) {
+      lastState = null;
+      return;
+    }
+
     clayBase = [...clay.data];
   };
 
