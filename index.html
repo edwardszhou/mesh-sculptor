@@ -9,7 +9,7 @@
   <body>
     <main>
       <canvas id="app"></canvas>
-      <div>
+      <div id="mediapipe">
         <video id="webcam" autoplay playsinline hidden></video>
         <div>
           <canvas id="canvas" width="800" height="800"></canvas>
@@ -17,6 +17,72 @@
             id="mediapipe_canvas"
             style="position: absolute; top: 0; transform: scaleX(-1)"
           ></canvas>
+        </div>
+      </div>
+      <div id="overlay">
+        <div id="card">
+          <div id="header">
+            <h1 id="title">Intangible <em>Sculpting</em></h1>
+            <div class="divider"></div>
+            <p id="subtitle">Gesture-Based 3D Sculpting <br />on the Browser</p>
+          </div>
+
+          <div id="permissions">
+            <div class="perm">
+              <div class="perm-icon">
+                <!-- camera icon -->
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+                  />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </div>
+              <div class="perm-text">
+                <strong>Camera access</strong>
+                Used locally for hand-tracking only
+              </div>
+            </div>
+
+            <div class="perm">
+              <div class="perm-icon">
+                <!-- hand icon -->
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+                  <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" />
+                  <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+                  <path
+                    d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
+                  />
+                </svg>
+              </div>
+              <div class="perm-text">
+                <strong>Gesture detection</strong>
+                Real-time hand landmarking
+              </div>
+            </div>
+          </div>
+
+          <button id="begin-btn">
+            <span id="spinner"></span>
+            <span id="btn-label">Enable &amp; Begin</span>
+          </button>
+
+          <div id="error-msg" role="alert" aria-live="polite"></div>
         </div>
       </div>
     </main>
