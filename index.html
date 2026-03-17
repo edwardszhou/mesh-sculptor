@@ -9,7 +9,18 @@
   <body>
     <main>
       <canvas id="app"></canvas>
+      <div>
+        <video id="webcam" autoplay playsinline hidden></video>
+        <div>
+          <canvas id="canvas" width="800" height="800"></canvas>
+          <canvas
+            id="mediapipe_canvas"
+            style="position: absolute; top: 0; transform: scaleX(-1)"
+          ></canvas>
+        </div>
+      </div>
     </main>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

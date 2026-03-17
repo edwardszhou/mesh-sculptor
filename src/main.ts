@@ -7,7 +7,7 @@ const FAR = 1000;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, NEAR, FAR);
-camera.position.set(5, 5, 5);
+camera.position.set(0, 2, 5);
 
 const canvas = document.getElementById("app") || undefined;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -29,7 +29,7 @@ const mesh = new THREE.Mesh(geometry, material);
 scene.add(mesh);
 
 function animate() {
-  // controls.update();
+  controls.update();
 
   if (resizeRenderer(renderer)) {
     const canvas = renderer.domElement;
