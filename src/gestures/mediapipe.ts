@@ -57,20 +57,23 @@ class Mediapipe {
       runningMode: "VIDEO",
       numHands: 2
     });
-
     return new Mediapipe(canvas, video, landmarker);
   }
 
-  init() {
-    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+  async init() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    return new Promise<void>((resolve) => {
+      console.log(this);
       this.video.srcObject = stream;
       this.video.addEventListener("loadeddata", () => {
         this.isReady = true;
+        resolve();
       });
     });
   }
 
   predict() {
+    if (!this.isReady) return;
     const video = this.video;
 
     if (video.lastVideoTime !== video.currentTime) {

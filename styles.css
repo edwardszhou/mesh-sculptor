@@ -6,6 +6,7 @@
 
 body {
   overflow: hidden;
+  background-color: black;
 }
 
 main {
@@ -30,27 +31,25 @@ main {
   --midbrown: #6b5e4e;
 }
 
-/* ─── overlay ─── */
-#overlay {
+#home-container {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(18px) saturate(0.6);
+  backdrop-filter: blur(18px);
   background: color-mix(in srgb, var(--darkbrown) 70%, transparent);
   transition: all 1s ease;
 }
-#overlay.fade-out {
+
+#home-container.fade-out {
   opacity: 0;
   visibility: hidden;
-  backdrop-filter: blur(0px) saturate(1);
-  -webkit-backdrop-filter: blur(0px) saturate(1);
+  backdrop-filter: blur(0px);
 }
 
-/* ─── card ─── */
-#card {
+#home {
   position: relative;
   width: min(480px, 92vw);
   padding: 48px;
@@ -62,15 +61,14 @@ main {
   gap: 48px;
 }
 
-#header {
+#home-header {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 20px;
 }
 
-/* ─── wordmark / title ─── */
-#title {
+h1 {
   font-family: serif;
   font-weight: 300;
   font-size: 3rem;
@@ -80,7 +78,7 @@ main {
   color: var(--lightbrown);
   text-transform: uppercase;
 }
-#title em {
+h1 em {
   font-style: italic;
   color: color-mix(in srgb, var(--lightbrown) 60%, transparent);
   letter-spacing: 0.2rem;
@@ -92,8 +90,7 @@ main {
   background: color-mix(in srgb, var(--lightbrown) 40%, transparent);
 }
 
-/* ─── body copy ─── */
-#subtitle {
+h3 {
   font-family: sans-serif;
   font-size: 0.8rem;
   font-weight: 300;
@@ -102,14 +99,13 @@ main {
   text-align: center;
 }
 
-/* ─── permission bullets ─── */
-#permissions {
+.item-list {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.perm {
+.item {
   display: flex;
   align-items: center;
   gap: 20px;
@@ -117,7 +113,7 @@ main {
   border: 1px solid color-mix(in srgb, var(--lightbrown) 10%, transparent);
   background: color-mix(in srgb, var(--lightbrown) 3%, transparent);
 }
-.perm-icon {
+.item-icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
@@ -126,23 +122,20 @@ main {
   justify-content: center;
   color: var(--lightbrown);
 }
-.perm-text {
+.item-text {
   font-family: sans-serif;
   font-size: 0.7rem;
   letter-spacing: 0.1rem;
   color: color-mix(in srgb, var(--lightbrown) 60%, transparent);
   line-height: 1.5;
 }
-.perm-text strong {
+.item-text strong {
   display: block;
   color: var(--lightbrown);
   font-weight: 400;
 }
 
-/* ─── CTA button ─── */
-#begin-btn {
-  position: relative;
-  width: 100%;
+button {
   padding: 16px 24px;
   font-family: serif;
   font-size: 0.8rem;
@@ -151,20 +144,26 @@ main {
   color: var(--darkbrown);
   background: var(--lightbrown);
   border: none;
-  cursor: pointer;
-  overflow: hidden;
   outline: none;
+  cursor: pointer;
   transition: all 0.25s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
 }
-/* loading state */
-#begin-btn.loading {
+
+button.loading {
   pointer-events: none;
 }
-#spinner {
+
+#home-btn {
+  width: 100%;
+  color: var(--darkbrown);
+  background: var(--lightbrown);
+}
+
+.spinner {
   display: none;
   width: 12px;
   height: 12px;
@@ -173,7 +172,7 @@ main {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-#begin-btn.loading .spinner {
+button.loading .spinner {
   display: block;
 }
 @keyframes spin {
@@ -183,7 +182,7 @@ main {
 }
 
 /* error toast */
-#error-msg {
+#home-error {
   font-family: sans-serif;
   font-size: 0.7rem;
   letter-spacing: 0.1rem;
@@ -192,6 +191,6 @@ main {
   opacity: 0;
   transition: opacity 0.25s;
 }
-#error-msg.visible {
+#home-error.visible {
   opacity: 1;
 }

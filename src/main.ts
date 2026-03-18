@@ -1,9 +1,18 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Mediapipe } from "./gestures/mediapipe";
+import { Home } from "./ui/home";
 
 const FOV = 75;
 const NEAR = 0.1;
 const FAR = 1000;
+
+const mpCanvas = document.getElementById("mediapipe-canvas") as HTMLCanvasElement;
+const mpVideo = document.getElementById("mediapipe-video") as HTMLVideoElement;
+
+const mediapipe = await Mediapipe.create(mpCanvas, mpVideo);
+const homeUI = new Home();
+homeUI.tryStart = async () => await mediapipe.init();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, NEAR, FAR);
@@ -30,6 +39,7 @@ scene.add(mesh);
 
 function animate() {
   controls.update();
+  mediapipe.predict();
 
   if (resizeRenderer(renderer)) {
     const canvas = renderer.domElement;

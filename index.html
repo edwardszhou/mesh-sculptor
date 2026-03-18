@@ -10,26 +10,26 @@
     <main>
       <canvas id="app"></canvas>
       <div id="mediapipe">
-        <video id="webcam" autoplay playsinline hidden></video>
+        <video id="mediapipe-video" autoplay playsinline hidden></video>
         <div>
           <canvas id="canvas" width="800" height="800"></canvas>
           <canvas
-            id="mediapipe_canvas"
+            id="mediapipe-canvas"
             style="position: absolute; top: 0; transform: scaleX(-1)"
           ></canvas>
         </div>
       </div>
-      <div id="overlay">
-        <div id="card">
-          <div id="header">
-            <h1 id="title">Intangible <em>Sculpting</em></h1>
+      <div id="home-container">
+        <div id="home">
+          <div id="home-header">
+            <h1>Intangible <em>Sculpting</em></h1>
             <div class="divider"></div>
-            <p id="subtitle">Gesture-Based 3D Sculpting <br />on the Browser</p>
+            <h3>Gesture-Based 3D Sculpting <br />on the Browser</h3>
           </div>
 
-          <div id="permissions">
-            <div class="perm">
-              <div class="perm-icon">
+          <div class="item-list">
+            <div class="item">
+              <div class="item-icon">
                 <!-- camera icon -->
                 <svg
                   viewBox="0 0 24 24"
@@ -45,14 +45,14 @@
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </div>
-              <div class="perm-text">
+              <div class="item-text">
                 <strong>Camera access</strong>
                 Used locally for hand-tracking only
               </div>
             </div>
 
-            <div class="perm">
-              <div class="perm-icon">
+            <div class="item">
+              <div class="item-icon">
                 <!-- hand icon -->
                 <svg
                   viewBox="0 0 24 24"
@@ -70,19 +70,19 @@
                   />
                 </svg>
               </div>
-              <div class="perm-text">
+              <div class="item-text">
                 <strong>Gesture detection</strong>
                 Real-time hand landmarking
               </div>
             </div>
           </div>
 
-          <button id="begin-btn">
-            <span id="spinner"></span>
-            <span id="btn-label">Enable &amp; Begin</span>
+          <button id="home-btn" class="btn">
+            <span class="spinner"></span>
+            <span id="home-btn-label">Enable &amp; Begin</span>
           </button>
 
-          <div id="error-msg" role="alert" aria-live="polite"></div>
+          <div id="home-error"></div>
         </div>
       </div>
     </main>
