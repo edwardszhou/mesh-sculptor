@@ -15,10 +15,19 @@ type HandResult = {
 
 type HandResults = Record<Handedness, HandResult | null>;
 
+const videoState = {
+  x: 0,
+  y: 0,
+  w: window.innerWidth,
+  h: window.innerHeight,
+  isVisible: true
+};
+
 class Mediapipe {
   private video: HTMLVideoElement & {
     lastVideoTime?: number;
   };
+  private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
 
   private drawUtils: DrawingUtils;
@@ -34,6 +43,7 @@ class Mediapipe {
     video: HTMLVideoElement,
     landmarker: HandLandmarker
   ) {
+    this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
     this.video = video;
 
@@ -42,7 +52,7 @@ class Mediapipe {
     this.results = { left: null, right: null };
 
     this.isReady = false;
-    this.isDebug = false;
+    this.isDebug = true;
   }
 
   static async create(canvas: HTMLCanvasElement, video: HTMLVideoElement) {
@@ -61,11 +71,16 @@ class Mediapipe {
   }
 
   async init() {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 320 },
+        height: { ideal: 240 }
+      }
+    });
     return new Promise<void>((resolve) => {
-      console.log(this);
       this.video.srcObject = stream;
       this.video.addEventListener("loadeddata", () => {
+        this.resize();
         this.isReady = true;
         resolve();
       });
@@ -88,6 +103,26 @@ class Mediapipe {
     }
   }
 
+  resize() {
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+
+    this.canvas.width = width;
+    this.canvas.height = height;
+    const videoAspect = this.video.videoWidth / this.video.videoHeight;
+    if (videoAspect > width / height) {
+      videoState.w = height * videoAspect;
+      videoState.h = height;
+      videoState.x = (width - videoState.w) / 2;
+      videoState.y = 0;
+    } else {
+      videoState.w = width;
+      videoState.h = width / videoAspect;
+      videoState.x = 0;
+      videoState.y = (height - videoState.h) / 2;
+    }
+  }
+
   private processResults(results: HandLandmarkerResult) {
     this.results.left = null;
     this.results.right = null;
@@ -95,8 +130,8 @@ class Mediapipe {
     for (let i = 0; i < results.landmarks.length; i++) {
       const handedness = results.handedness[i][0].displayName.toLowerCase() as Handedness;
 
-      const landmarks = results.landmarks[i].map(this.transformLandmark);
-      const worldLandmarks = results.worldLandmarks[i].map(this.transformLandmark);
+      const landmarks = results.landmarks[i].map((lm) => this.transformLandmark(lm));
+      const worldLandmarks = results.worldLandmarks[i].map((lm) => this.transformLandmark(lm));
 
       this.results[handedness] = { landmarks, worldLandmarks };
     }
@@ -104,8 +139,8 @@ class Mediapipe {
 
   private transformLandmark(lm: Landmark): Landmark {
     return {
-      x: lm.x,
-      y: lm.y,
+      x: 1 - (videoState.x + lm.x * videoState.w) / this.canvas.width,
+      y: (videoState.y + lm.y * videoState.h) / this.canvas.height,
       z: lm.z,
       visibility: lm.visibility
     };
@@ -113,6 +148,7 @@ class Mediapipe {
 
   private drawDebug() {
     this.ctx.save();
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     for (const hand of Object.values(this.results)) {
       if (!hand) continue;
@@ -121,10 +157,10 @@ class Mediapipe {
         color: "#FFFFFF",
         lineWidth: 2
       });
-      this.drawUtils.drawLandmarks(hand.landmarks, {
-        color: "#FFFFFF",
-        lineWidth: 2
-      });
+      // this.drawUtils.drawLandmarks(hand.landmarks, {
+      //   color: "#FFFFFF",
+      //   lineWidth: 2
+      // });
     }
 
     this.ctx.restore();

@@ -33,7 +33,7 @@ scene.add(light);
 scene.add(new THREE.AmbientLight(0x888888));
 
 const geometry = new THREE.SphereGeometry();
-const material = new THREE.MeshStandardMaterial({ color: 0x8888ff });
+const material = new THREE.MeshStandardMaterial({ color: 0xc8b49a });
 const mesh = new THREE.Mesh(geometry, material);
 scene.add(mesh);
 
@@ -43,6 +43,7 @@ function animate() {
 
   if (resizeRenderer(renderer)) {
     const canvas = renderer.domElement;
+    mediapipe.resize();
     camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
   }
