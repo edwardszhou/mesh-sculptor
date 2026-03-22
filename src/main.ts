@@ -40,6 +40,10 @@ scene.add(clayMesh);
 clayMesh.visible = false;
 
 const voxelGrid = new VoxelGrid(16, 1, true);
+voxelGrid.setSDF((x, y, z) => {
+  return Math.sqrt(x * x + y * y + z * z) - 4;
+});
+console.log(voxelGrid.data);
 scene.add(voxelGrid.mesh);
 
 function animate() {

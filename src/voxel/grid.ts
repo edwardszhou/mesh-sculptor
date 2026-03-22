@@ -72,6 +72,22 @@ class VoxelGrid {
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 
+  setSDF(sdfFn: (x: number, y: number, z: number) => number) {
+    const offset = (this.resolution * this.cellSize) / 2;
+    for (let i = 0; i < this.resolution; i++) {
+      const x = i * this.cellSize - offset + this.cellSize / 2;
+      for (let j = 0; j < this.resolution; j++) {
+        const y = j * this.cellSize - offset + this.cellSize / 2;
+        for (let k = 0; k < this.resolution; k++) {
+          const z = k * this.cellSize - offset + this.cellSize / 2;
+          const val = sdfFn(x, y, z);
+          this.setVoxel(i, j, k, val);
+        }
+      }
+    }
+    this.updateMesh();
+  }
+
   setGrid(val: number) {
     this.data.fill(val);
   }
