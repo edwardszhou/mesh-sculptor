@@ -198,6 +198,7 @@ button.loading .spinner {
 #mediapipe {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 
 #mediapipe-canvas {
