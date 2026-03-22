@@ -55,7 +55,10 @@ class Mediapipe {
     this.isDebug = true;
   }
 
-  static async create(canvas: HTMLCanvasElement, video: HTMLVideoElement) {
+  static async create(canvas: HTMLCanvasElement, video: HTMLVideoElement, dummy: boolean = false) {
+    if (dummy) {
+      return new Mediapipe(canvas, video, { dummy: true } as any);
+    }
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
     );
@@ -71,6 +74,7 @@ class Mediapipe {
   }
 
   async init() {
+    if ((this.landmarker as any).dummy) return;
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         width: { ideal: 320 },

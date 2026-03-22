@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import Stats from "three/addons/libs/stats.module.js";
 import { Mediapipe } from "./gestures/mediapipe";
 import { Home } from "./ui/home";
 import { VoxelGrid } from "./voxel/grid";
@@ -11,20 +12,23 @@ const FAR = 1000;
 const mpCanvas = document.getElementById("mediapipe-canvas") as HTMLCanvasElement;
 const mpVideo = document.getElementById("mediapipe-video") as HTMLVideoElement;
 
-// const mediapipe = await Mediapipe.create(mpCanvas, mpVideo);
+const mediapipe = await Mediapipe.create(mpCanvas, mpVideo, true);
 const homeUI = new Home();
-// homeUI.tryStart = async () => await mediapipe.init();
+homeUI.tryStart = async () => await mediapipe.init();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, NEAR, FAR);
 camera.position.set(0, 2, 5);
 
-const canvas = document.getElementById("app") || undefined;
+const appContainer = document.getElementById("app-container") as HTMLDivElement;
+const canvas = document.getElementById("app") as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 renderer.setAnimationLoop(animate);
 
 const controls = new OrbitControls(camera, renderer.domElement);
+const stats = new Stats();
+appContainer.appendChild(stats.dom);
 
 scene.add(new THREE.GridHelper(100, 20));
 
@@ -39,25 +43,25 @@ const clayMesh = new THREE.Mesh(clayGeometry, clayMaterial);
 scene.add(clayMesh);
 clayMesh.visible = false;
 
-const voxelGrid = new VoxelGrid(16, 1, true);
+const voxelGrid = new VoxelGrid(64, 1, true);
 voxelGrid.setSDF((x, y, z) => {
   return Math.sqrt(x * x + y * y + z * z) - 4;
 });
-console.log(voxelGrid.data);
 scene.add(voxelGrid.mesh);
 
 function animate() {
   controls.update();
-  // mediapipe.predict();
+  mediapipe.predict();
 
   if (resizeRenderer(renderer)) {
     const canvas = renderer.domElement;
-    // mediapipe.resize();
+    mediapipe.resize();
     camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
   }
 
   renderer.render(scene, camera);
+  stats.update();
 }
 
 function resizeRenderer(renderer: THREE.WebGLRenderer) {
