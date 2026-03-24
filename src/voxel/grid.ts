@@ -9,7 +9,9 @@ class VoxelGrid {
   size: number;
 
   worldSize: number;
-  cellSize: number;
+  halfSize: number;
+  voxelSize: number;
+
   data: Float32Array;
   mesh: THREE.InstancedMesh;
   showMesh: boolean;
@@ -22,10 +24,11 @@ class VoxelGrid {
     this.size = resolution * resolution * resolution;
 
     this.worldSize = worldSize;
-    this.cellSize = worldSize / resolution;
+    this.halfSize = worldSize / 2;
+    this.voxelSize = worldSize / resolution;
     this.data = new Float32Array(this.size).fill(1);
 
-    const geometry = new THREE.BoxGeometry(this.cellSize, this.cellSize, this.cellSize);
+    const geometry = new THREE.BoxGeometry(this.voxelSize, this.voxelSize, this.voxelSize);
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
     this.mesh = new THREE.InstancedMesh(geometry, material, this.size);
     this.showMesh = showMesh;
@@ -47,18 +50,18 @@ class VoxelGrid {
   idxToWorld(i: number, j: number, k: number) {
     const offset = this.worldSize / 2;
     return new THREE.Vector3(
-      i * this.cellSize - offset + this.cellSize / 2,
-      j * this.cellSize - offset + this.cellSize / 2,
-      k * this.cellSize - offset + this.cellSize / 2
+      i * this.voxelSize - offset + this.voxelSize / 2,
+      j * this.voxelSize - offset + this.voxelSize / 2,
+      k * this.voxelSize - offset + this.voxelSize / 2
     );
   }
 
   worldToIdx(x: number, y: number, z: number) {
     const offset = this.worldSize / 2;
     return this.idx(
-      Math.floor((x + offset) / this.cellSize),
-      Math.floor((y + offset) / this.cellSize),
-      Math.floor((z + offset) / this.cellSize)
+      Math.floor((x + offset) / this.voxelSize),
+      Math.floor((y + offset) / this.voxelSize),
+      Math.floor((z + offset) / this.voxelSize)
     );
   }
 
@@ -67,15 +70,16 @@ class VoxelGrid {
     const offset = this.worldSize / 2;
 
     for (let i = 0; i < this.resolution; i++) {
-      const x = i * this.cellSize - offset + this.cellSize / 2;
+      const x = i * this.voxelSize - offset + this.voxelSize / 2;
       for (let j = 0; j < this.resolution; j++) {
-        const y = j * this.cellSize - offset + this.cellSize / 2;
+        const y = j * this.voxelSize - offset + this.voxelSize / 2;
         for (let k = 0; k < this.resolution; k++) {
-          const z = k * this.cellSize - offset + this.cellSize / 2;
+          const z = k * this.voxelSize - offset + this.voxelSize / 2;
           const idx = this.idx(i, j, k);
           matrix.setPosition(x, y, z);
 
-          const intensity = 1.05 - clamp(this.data[idx], 0.05, 1);
+          // const intensity = 1.05 - clamp(this.data[idx], 0.05, 1);
+          const intensity = this.data[idx] < 0 ? 1 : 0.05;
           this.mesh.setMatrixAt(idx, matrix);
           this.mesh.setColorAt(idx, new THREE.Color(intensity, 0.05, 0.05));
         }
@@ -87,11 +91,11 @@ class VoxelGrid {
   setSDF(sdfFn: (x: number, y: number, z: number) => number) {
     const offset = this.worldSize / 2;
     for (let i = 0; i < this.resolution; i++) {
-      const x = i * this.cellSize - offset + this.cellSize / 2;
+      const x = i * this.voxelSize - offset + this.voxelSize / 2;
       for (let j = 0; j < this.resolution; j++) {
-        const y = j * this.cellSize - offset + this.cellSize / 2;
+        const y = j * this.voxelSize - offset + this.voxelSize / 2;
         for (let k = 0; k < this.resolution; k++) {
-          const z = k * this.cellSize - offset + this.cellSize / 2;
+          const z = k * this.voxelSize - offset + this.voxelSize / 2;
           const val = sdfFn(x, y, z);
           this.setVoxel(i, j, k, val);
         }

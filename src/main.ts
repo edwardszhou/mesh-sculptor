@@ -45,21 +45,15 @@ scene.add(clayMesh);
 clayMesh.visible = false;
 
 const voxelGrid = new VoxelGrid(48, 16, true);
-voxelGrid.setSDF((x, y, z) => {
-  const x1 = x - 3.5;
-  const x2 = x + 3.5;
-  const sphere1 = Math.sqrt(x1 * x1 + y * y + z * z) - 4;
-  const sphere2 = Math.sqrt(x2 * x2 + y * y + z * z) - 4;
-  return Math.min(sphere1, sphere2);
-});
 scene.add(voxelGrid.mesh);
 
 const marchingCubes = new MarchingCubes(voxelGrid);
 marchingCubes.triangulate();
 const marchedMesh = new THREE.Mesh(
   marchingCubes.geometry,
-  new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+  new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true })
 );
+
 scene.add(marchedMesh);
 
 function animate() {
@@ -73,6 +67,18 @@ function animate() {
     camera.updateProjectionMatrix();
   }
 
+  voxelGrid.setSDF((x, y, z) => {
+    const x1 = x - 2.5;
+    const x2 = x + 2.5;
+    const y1 = y + Math.sin(Date.now() / 500);
+    const y2 = y + Math.cos(Date.now() / 500);
+    const sphere1 = Math.sqrt(x1 * x1 + y1 * y1 + z * z) - 4;
+    const sphere2 = Math.sqrt(x2 * x2 + y2 * y2 + z * z) - 4;
+    return Math.min(sphere1, sphere2);
+  });
+  marchingCubes.isosurface = Math.sin(Date.now() / 1000);
+
+  marchingCubes.triangulate();
   renderer.render(scene, camera);
   stats.update();
 }

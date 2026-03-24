@@ -23,7 +23,7 @@ class MarchingCubes {
   tempNor: Float32Array;
   tempCol: Float32Array;
 
-  constructor(grid: VoxelGrid, enableUvs = false, enableColors = false, maxVertexCount = 30000) {
+  constructor(grid: VoxelGrid, enableUvs = false, enableColors = false, maxVertexCount = 300000) {
     this.geometry = new THREE.BufferGeometry();
 
     // temp buffers used in polygonize
@@ -246,18 +246,20 @@ class MarchingCubes {
   private createTriangle(edge1: number, edge2: number, edge3: number) {
     let offset = this.vertexCount * 3;
 
+    const posOffset = this.grid.halfSize;
+    const posScale = this.grid.voxelSize;
     // positions
-    this.positionArray[offset + 0] = this.tempPos[edge1 + 0];
-    this.positionArray[offset + 1] = this.tempPos[edge1 + 1];
-    this.positionArray[offset + 2] = this.tempPos[edge1 + 2];
+    this.positionArray[offset + 0] = this.tempPos[edge1 + 0] * posScale - posOffset;
+    this.positionArray[offset + 1] = this.tempPos[edge1 + 1] * posScale - posOffset;
+    this.positionArray[offset + 2] = this.tempPos[edge1 + 2] * posScale - posOffset;
 
-    this.positionArray[offset + 3] = this.tempPos[edge2 + 0];
-    this.positionArray[offset + 4] = this.tempPos[edge2 + 1];
-    this.positionArray[offset + 5] = this.tempPos[edge2 + 2];
+    this.positionArray[offset + 3] = this.tempPos[edge2 + 0] * posScale - posOffset;
+    this.positionArray[offset + 4] = this.tempPos[edge2 + 1] * posScale - posOffset;
+    this.positionArray[offset + 5] = this.tempPos[edge2 + 2] * posScale - posOffset;
 
-    this.positionArray[offset + 6] = this.tempPos[edge3 + 0];
-    this.positionArray[offset + 7] = this.tempPos[edge3 + 1];
-    this.positionArray[offset + 8] = this.tempPos[edge3 + 2];
+    this.positionArray[offset + 6] = this.tempPos[edge3 + 0] * posScale - posOffset;
+    this.positionArray[offset + 7] = this.tempPos[edge3 + 1] * posScale - posOffset;
+    this.positionArray[offset + 8] = this.tempPos[edge3 + 2] * posScale - posOffset;
 
     // normals
     this.normalArray[offset + 0] = this.tempNor[edge1 + 0];
@@ -311,6 +313,8 @@ class MarchingCubes {
   }
 
   triangulate() {
+    const start = performance.now();
+
     this.vertexCount = 0;
 
     // Avoid triangulating edges b/c degenerate normals
@@ -335,6 +339,9 @@ class MarchingCubes {
 
     if (this.vertexCount > this.maxVertexCount)
       console.log("Marching cubes max vertex count exceeded.");
+
+    const end = performance.now();
+    console.log("Marching Cubes full triangulation: ", end - start);
   }
 }
 
