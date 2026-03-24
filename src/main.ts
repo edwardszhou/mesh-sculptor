@@ -43,7 +43,7 @@ const clayMesh = new THREE.Mesh(clayGeometry, clayMaterial);
 scene.add(clayMesh);
 clayMesh.visible = false;
 
-const voxelGrid = new VoxelGrid(64, 1, true);
+const voxelGrid = new VoxelGrid(20, 1, true);
 voxelGrid.setSDF((x, y, z) => {
   return Math.sqrt(x * x + y * y + z * z) - 4;
 });

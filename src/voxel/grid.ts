@@ -3,6 +3,11 @@ import { clamp } from "../utils/math";
 
 class VoxelGrid {
   resolution: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  size: number;
+
   cellSize: number;
   data: Float32Array;
   mesh: THREE.InstancedMesh;
@@ -10,18 +15,23 @@ class VoxelGrid {
 
   constructor(res: number, cellSize: number = 1, showMesh: boolean = false) {
     this.resolution = res;
+    this.dx = 1;
+    this.dy = res;
+    this.dz = res * res;
+    this.size = res * res * res;
+
     this.cellSize = cellSize;
-    this.data = new Float32Array(res * res * res).fill(1);
+    this.data = new Float32Array(this.size).fill(1);
 
     const geometry = new THREE.BoxGeometry(this.cellSize, this.cellSize, this.cellSize);
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
-    this.mesh = new THREE.InstancedMesh(geometry, material, res * res * res);
+    this.mesh = new THREE.InstancedMesh(geometry, material, this.size);
     this.showMesh = showMesh;
     this.updateMesh();
   }
 
   idx(i: number, j: number, k: number) {
-    return i + this.resolution * j + this.resolution * this.resolution * k;
+    return this.dx * i + this.dy * j + this.dz * k;
   }
 
   getVoxel(i: number, j: number, k: number) {
