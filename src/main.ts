@@ -4,6 +4,7 @@ import Stats from "three/addons/libs/stats.module.js";
 import { Mediapipe } from "./gestures/mediapipe";
 import { Home } from "./ui/home";
 import { VoxelGrid } from "./voxel/grid";
+import { MarchingCubes } from "./mesh/marchingCubes";
 
 const FOV = 75;
 const NEAR = 0.1;
@@ -43,11 +44,23 @@ const clayMesh = new THREE.Mesh(clayGeometry, clayMaterial);
 scene.add(clayMesh);
 clayMesh.visible = false;
 
-const voxelGrid = new VoxelGrid(20, 1, true);
+const voxelGrid = new VoxelGrid(48, 16, true);
 voxelGrid.setSDF((x, y, z) => {
-  return Math.sqrt(x * x + y * y + z * z) - 4;
+  const x1 = x - 3.5;
+  const x2 = x + 3.5;
+  const sphere1 = Math.sqrt(x1 * x1 + y * y + z * z) - 4;
+  const sphere2 = Math.sqrt(x2 * x2 + y * y + z * z) - 4;
+  return Math.min(sphere1, sphere2);
 });
 scene.add(voxelGrid.mesh);
+
+const marchingCubes = new MarchingCubes(voxelGrid);
+marchingCubes.triangulate();
+const marchedMesh = new THREE.Mesh(
+  marchingCubes.geometry,
+  new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+);
+scene.add(marchedMesh);
 
 function animate() {
   controls.update();

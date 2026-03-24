@@ -66,10 +66,6 @@ class MarchingCubes {
     }
   }
 
-  ///////////////////////
-  // Polygonization
-  ///////////////////////
-
   private interpolateEdge(
     axis: number,
     vIdx: number,
@@ -124,8 +120,6 @@ class MarchingCubes {
     }
   }
 
-  // Returns total number of triangles. Fills triangles.
-  // (this is where most of time is spent - it's inner work of O(n3) loop )
   // https://paulbourke.net/geometry/polygonise/
   private polygonize(x: number, y: number, z: number, vIdx: number) {
     const grid = this.grid;

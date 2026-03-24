@@ -8,19 +8,21 @@ class VoxelGrid {
   dz: number;
   size: number;
 
+  worldSize: number;
   cellSize: number;
   data: Float32Array;
   mesh: THREE.InstancedMesh;
   showMesh: boolean;
 
-  constructor(res: number, cellSize: number = 1, showMesh: boolean = false) {
-    this.resolution = res;
+  constructor(resolution: number, worldSize: number = 1, showMesh: boolean = false) {
+    this.resolution = resolution;
     this.dx = 1;
-    this.dy = res;
-    this.dz = res * res;
-    this.size = res * res * res;
+    this.dy = resolution;
+    this.dz = resolution * resolution;
+    this.size = resolution * resolution * resolution;
 
-    this.cellSize = cellSize;
+    this.worldSize = worldSize;
+    this.cellSize = worldSize / resolution;
     this.data = new Float32Array(this.size).fill(1);
 
     const geometry = new THREE.BoxGeometry(this.cellSize, this.cellSize, this.cellSize);
@@ -43,7 +45,7 @@ class VoxelGrid {
   }
 
   idxToWorld(i: number, j: number, k: number) {
-    const offset = (this.resolution * this.cellSize) / 2;
+    const offset = this.worldSize / 2;
     return new THREE.Vector3(
       i * this.cellSize - offset + this.cellSize / 2,
       j * this.cellSize - offset + this.cellSize / 2,
@@ -52,7 +54,7 @@ class VoxelGrid {
   }
 
   worldToIdx(x: number, y: number, z: number) {
-    const offset = (this.resolution * this.cellSize) / 2;
+    const offset = this.worldSize / 2;
     return this.idx(
       Math.floor((x + offset) / this.cellSize),
       Math.floor((y + offset) / this.cellSize),
@@ -62,7 +64,7 @@ class VoxelGrid {
 
   updateMesh() {
     const matrix = new THREE.Matrix4();
-    const offset = (this.resolution * this.cellSize) / 2;
+    const offset = this.worldSize / 2;
 
     for (let i = 0; i < this.resolution; i++) {
       const x = i * this.cellSize - offset + this.cellSize / 2;
@@ -83,7 +85,7 @@ class VoxelGrid {
   }
 
   setSDF(sdfFn: (x: number, y: number, z: number) => number) {
-    const offset = (this.resolution * this.cellSize) / 2;
+    const offset = this.worldSize / 2;
     for (let i = 0; i < this.resolution; i++) {
       const x = i * this.cellSize - offset + this.cellSize / 2;
       for (let j = 0; j < this.resolution; j++) {
