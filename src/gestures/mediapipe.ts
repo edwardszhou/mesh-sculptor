@@ -6,14 +6,17 @@ import {
   type Landmark
 } from "@mediapipe/tasks-vision";
 
-type Handedness = "left" | "right";
+export type Handedness = "left" | "right";
 
-type HandResult = {
+export type Hand = {
   landmarks: Landmark[];
   worldLandmarks: Landmark[];
 };
 
-type HandResults = Record<Handedness, HandResult | null>;
+export type Hands<T> = Record<Handedness, T>;
+export type HandsResult = Hands<Hand | null>;
+
+export const HANDEDNESSES = ["left", "right"] as const satisfies Handedness[];
 
 const videoState = {
   x: 0,
@@ -33,7 +36,7 @@ class Mediapipe {
   private drawUtils: DrawingUtils;
   private landmarker: HandLandmarker;
 
-  results: HandResults;
+  results: HandsResult;
 
   isReady: boolean;
   isDebug: boolean;
