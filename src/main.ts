@@ -95,13 +95,9 @@ function animate() {
   marchingCubes.isosurface = Math.sin(Date.now() / 1000) * 0;
 
   if (handsTracker.left.landmarks.length) {
-    const landmarks = handsTracker.left.worldLandmarks;
+    const landmarks = handsTracker.left.sceneLandmarks;
     for (let i = 0; i < 21; i++) {
-      handMarkers[i].position.set(
-        -10 + landmarks[i].x * 10,
-        3 + -landmarks[i].y * 10,
-        landmarks[i].z * 10
-      );
+      handMarkers[i].position.set(landmarks[i].x * 10, landmarks[i].y * 10, landmarks[i].z * 10);
     }
   }
   // marchingCubes.triangulate();

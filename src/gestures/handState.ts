@@ -1,6 +1,6 @@
 import type { Landmark } from "@mediapipe/tasks-vision";
 import type { Gesture } from "./gesture";
-import { handScale } from "./landmarks";
+import { handScale, lmAverage } from "./landmarks";
 import type { HandResult } from "./mediapipe";
 import { KalmanFilter, OneEuroFilter } from "../utils/filter";
 
@@ -36,7 +36,13 @@ export class HandState {
   landmarks: Landmark[];
   worldLandmarks: Landmark[];
   relativeLandmarks: Landmark[];
-  scale: number;
+  sceneLandmarks: Landmark[];
+  transform: {
+    x: number;
+    y: number;
+    z: number;
+    scale: number;
+  };
   gesture: Gesture | null;
   filterType: Filter;
   filters: FilterSet[] | null;
@@ -47,7 +53,13 @@ export class HandState {
     this.landmarks = [];
     this.worldLandmarks = [];
     this.relativeLandmarks = [];
-    this.scale = -1;
+    this.sceneLandmarks = [];
+    this.transform = {
+      x: 0,
+      y: 0,
+      z: 0,
+      scale: 1
+    };
 
     this.gesture = null;
 
@@ -80,11 +92,22 @@ export class HandState {
         visibility: lm.visibility
       }));
     }
-    this.scale = handScale(result.landmarks);
+    const avgLandmark = lmAverage(this.landmarks);
+    this.transform.scale = handScale(result.landmarks);
+    this.transform.x = avgLandmark.x;
+    this.transform.y = avgLandmark.y;
+    this.transform.z = Math.sqrt(this.transform.scale) * 3;
+
     this.relativeLandmarks = result.landmarks.map((lm) => ({
-      x: lm.x / this.scale,
-      y: lm.y / this.scale,
-      z: lm.z / this.scale,
+      x: lm.x / this.transform.scale,
+      y: lm.y / this.transform.scale,
+      z: lm.z / this.transform.scale,
+      visibility: lm.visibility
+    }));
+    this.sceneLandmarks = result.worldLandmarks.map((lm) => ({
+      x: lm.x + this.transform.x,
+      y: -lm.y - this.transform.y,
+      z: lm.z + this.transform.z,
       visibility: lm.visibility
     }));
   }

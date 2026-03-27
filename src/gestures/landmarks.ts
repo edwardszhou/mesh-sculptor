@@ -54,7 +54,11 @@ export function handScale(landmarks: Landmark[]) {
   // Get hand scale in 3D space based on palm size from landmarks
   const palmWidth = lmDistance(landmarks, LM.INDEX_MCP, LM.PINKY_MCP);
   const palmLength = lmDistance(landmarks, LM.WRIST, LM.MIDDLE_MCP);
-  return Math.max(palmWidth, palmLength, 0.01);
+
+  // When palm is facing camera (both width and length are maximized), length = RATIO * width.
+  const PALM_RATIO = 1.58;
+  // Correct for this factor
+  return Math.max(palmWidth * PALM_RATIO, palmLength, 0.01);
 }
 
 export function lmDistance(landmarks: Landmark[], a: LM, b: LM) {
@@ -70,15 +74,24 @@ export function lmDistance2D(landmarks: Landmark[], a: LM, b: LM) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-export function lmAverage(landmarks: Landmark[], indices: LM[]) {
-  const sum = indices.reduce(
-    (acc, i) => ({
-      x: acc.x + landmarks[i].x,
-      y: acc.y + landmarks[i].y,
-      z: acc.z + landmarks[i].z
-    }),
-    { x: 0, y: 0, z: 0 }
-  );
-  const n = indices.length;
-  return { x: sum.x / n, y: sum.y / n, z: sum.z / n };
+export function lmAverage(landmarks: Landmark[], indices?: LM[]): Landmark {
+  return indices
+    ? indices.reduce(
+        (acc, i) => ({
+          x: acc.x + landmarks[i].x / indices.length,
+          y: acc.y + landmarks[i].y / indices.length,
+          z: acc.z + landmarks[i].z / indices.length,
+          visibility: acc.visibility
+        }),
+        { x: 0, y: 0, z: 0, visibility: 1 }
+      )
+    : landmarks.reduce(
+        (acc, lm) => ({
+          x: acc.x + lm.x / landmarks.length,
+          y: acc.y + lm.y / landmarks.length,
+          z: acc.z + lm.z / landmarks.length,
+          visibility: acc.visibility
+        }),
+        { x: 0, y: 0, z: 0, visibility: 1 }
+      );
 }
