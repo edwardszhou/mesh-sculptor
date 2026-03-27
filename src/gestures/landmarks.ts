@@ -64,6 +64,12 @@ export function lmDistance(landmarks: Landmark[], a: LM, b: LM) {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
+export function lmDistance2D(landmarks: Landmark[], a: LM, b: LM) {
+  const dx = landmarks[a].x - landmarks[b].x;
+  const dy = landmarks[a].y - landmarks[b].y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 export function lmAverage(landmarks: Landmark[], indices: LM[]) {
   const sum = indices.reduce(
     (acc, i) => ({

@@ -1,6 +1,14 @@
 import { clamp } from "../utils/math";
 import type { Handedness, Hands } from "./mediapipe";
-import { FINGERS, handScale, LM, LM_TIPS, lmAverage, lmDistance, type Finger } from "./landmarks";
+import {
+  FINGERS,
+  LM,
+  LM_TIPS,
+  lmAverage,
+  lmDistance,
+  lmDistance2D,
+  type Finger
+} from "./landmarks";
 import type { HandState } from "./handState";
 
 export type Gesture = HandGesture | MotionGesture;
@@ -188,6 +196,11 @@ export class PinchGesture extends HandGesture {
 }
 
 export function fingerDistances(hand: HandState, reference: LM, fingers: Finger[]) {
-  const scale = handScale(hand.landmarks);
-  return fingers.map((f) => lmDistance(hand.landmarks, reference, LM_TIPS[FINGERS[f]]) / scale);
+  if (!hand.landmarks.length) return Array(fingers.length).fill(-1);
+  console.log(
+    fingers.map((f) => lmDistance2D(hand.relativeLandmarks, reference, LM_TIPS[FINGERS[f]]))
+  );
+  console.log(fingers.map((f) => lmDistance(hand.worldLandmarks, reference, LM_TIPS[FINGERS[f]])));
+
+  return fingers.map((f) => lmDistance2D(hand.relativeLandmarks, reference, LM_TIPS[FINGERS[f]]));
 }

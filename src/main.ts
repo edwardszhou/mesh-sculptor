@@ -6,6 +6,8 @@ import { Home } from "./ui/home";
 import { VoxelGrid } from "./voxel/grid";
 import { MarchingCubes } from "./mesh/marchingCubes";
 import { HandsTracker } from "./gestures/tracking";
+import { fingerDistances } from "./gestures/gesture";
+import { LM } from "./gestures/landmarks";
 
 const FOV = 75;
 const NEAR = 0.1;
@@ -42,11 +44,9 @@ scene.add(new THREE.AmbientLight(0x888888));
 const clayGeometry = new THREE.SphereGeometry();
 const clayMaterial = new THREE.MeshStandardMaterial({ color: 0xc8b49a });
 const clayMesh = new THREE.Mesh(clayGeometry, clayMaterial);
-scene.add(clayMesh);
 clayMesh.visible = false;
 
 const voxelGrid = new VoxelGrid(48, 16, true);
-scene.add(voxelGrid.mesh);
 
 const marchingCubes = new MarchingCubes(voxelGrid);
 marchingCubes.triangulate();
@@ -55,14 +55,26 @@ const marchedMesh = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true })
 );
 
-scene.add(marchedMesh);
-
 const handsTracker = new HandsTracker();
+
+let handMarkers: THREE.Mesh[] = [];
+const handGeometry = new THREE.SphereGeometry(0.1);
+const handMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+for (let i = 0; i < 21; i++) {
+  const marker = new THREE.Mesh(handGeometry, handMaterial);
+  handMarkers.push(marker);
+  scene.add(marker);
+}
+
+// scene.add(clayMesh);
+// scene.add(voxelGrid.mesh);
+// scene.add(marchedMesh);
 
 function animate() {
   controls.update();
   mediapipe.predict();
   handsTracker.update(mediapipe.results);
+  fingerDistances(handsTracker.left, LM.WRIST, ["INDEX"]);
 
   if (resizeRenderer(renderer)) {
     const canvas = renderer.domElement;
@@ -74,14 +86,24 @@ function animate() {
   voxelGrid.setSDF((x, y, z) => {
     const x1 = x - 2.5;
     const x2 = x + 2.5;
-    const y1 = y + Math.sin(Date.now() / 500);
-    const y2 = y + Math.cos(Date.now() / 500);
+    const y1 = y + Math.sin(Date.now() / 500) * 0;
+    const y2 = y + Math.cos(Date.now() / 500) * 0;
     const sphere1 = Math.sqrt(x1 * x1 + y1 * y1 + z * z) - 4;
     const sphere2 = Math.sqrt(x2 * x2 + y2 * y2 + z * z) - 4;
     return Math.min(sphere1, sphere2);
   });
-  marchingCubes.isosurface = Math.sin(Date.now() / 1000);
+  marchingCubes.isosurface = Math.sin(Date.now() / 1000) * 0;
 
+  if (handsTracker.left.landmarks.length) {
+    const landmarks = handsTracker.left.worldLandmarks;
+    for (let i = 0; i < 21; i++) {
+      handMarkers[i].position.set(
+        -10 + landmarks[i].x * 10,
+        3 + -landmarks[i].y * 10,
+        landmarks[i].z * 10
+      );
+    }
+  }
   // marchingCubes.triangulate();
   renderer.render(scene, camera);
   stats.update();
