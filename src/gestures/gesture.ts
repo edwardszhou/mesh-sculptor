@@ -1,19 +1,20 @@
 import { clamp } from "../utils/math";
-import type { Hand, Handedness, Hands } from "./mediapipe";
+import type { Handedness, Hands } from "./mediapipe";
 import { FINGERS, handScale, LM, LM_TIPS, lmAverage, lmDistance, type Finger } from "./landmarks";
+import type { HandState } from "./handState";
 
 export type Gesture = HandGesture | MotionGesture;
 
 export class HandGesture {
   id: string;
-  conditionFn: (hand: Hand) => boolean;
+  conditionFn: (hand: HandState) => boolean;
   activationThreshold: number;
   activeCooldown: number;
 
-  onUpdate: (self: HandGesture, hand: Hand, h: Handedness) => void;
-  onStart: (self: HandGesture, hand: Hand, h: Handedness) => void;
-  onEnd: (self: HandGesture, hand: Hand, h: Handedness) => void;
-  onActive: (self: HandGesture, hand: Hand, h: Handedness) => void;
+  onUpdate: (self: HandGesture, hand: HandState, h: Handedness) => void;
+  onStart: (self: HandGesture, hand: HandState, h: Handedness) => void;
+  onEnd: (self: HandGesture, hand: HandState, h: Handedness) => void;
+  onActive: (self: HandGesture, hand: HandState, h: Handedness) => void;
 
   state: Hands<any>;
   lastActiveTime: Hands<number>;
@@ -22,7 +23,7 @@ export class HandGesture {
 
   constructor(
     id: string,
-    conditionFn: (hand: Hand) => boolean,
+    conditionFn: (hand: HandState) => boolean,
     activationThreshold = 5,
     activeCooldown = 33
   ) {
@@ -43,7 +44,7 @@ export class HandGesture {
     this.isActive = { left: false, right: false };
   }
 
-  update(hand: Hand, h: Handedness, silent = false, timestamp = Date.now()) {
+  update(hand: HandState, h: Handedness, silent = false, timestamp = Date.now()) {
     const conditionMet = this.conditionFn(hand);
 
     // Increase/decrease confidence based on condition, update
@@ -69,29 +70,29 @@ export class HandGesture {
     return this.isActive[h];
   }
 
-  protected _onUpdate(hand: Hand, h: Handedness) {
+  protected _onUpdate(hand: HandState, h: Handedness) {
     this.onUpdate?.(this, hand, h);
   }
-  protected _onStart(hand: Hand, h: Handedness) {
+  protected _onStart(hand: HandState, h: Handedness) {
     this.onStart?.(this, hand, h);
   }
-  protected _onEnd(hand: Hand, h: Handedness) {
+  protected _onEnd(hand: HandState, h: Handedness) {
     this.onEnd?.(this, hand, h);
   }
-  protected _onActive(hand: Hand, h: Handedness) {
+  protected _onActive(hand: HandState, h: Handedness) {
     this.onActive?.(this, hand, h);
   }
 }
 
 export class MotionGesture {
   id: string;
-  conditionFnA: (hand: Hand) => boolean;
-  conditionFnB: (hand: Hand) => boolean;
+  conditionFnA: (hand: HandState) => boolean;
+  conditionFnB: (hand: HandState) => boolean;
   maxTimeInterval: number;
   triggerCooldown: number;
 
-  onTriggerAB: (self: MotionGesture, hand: Hand, h: Handedness) => void;
-  onTriggerBA: (self: MotionGesture, hand: Hand, h: Handedness) => void;
+  onTriggerAB: (self: MotionGesture, hand: HandState, h: Handedness) => void;
+  onTriggerBA: (self: MotionGesture, hand: HandState, h: Handedness) => void;
 
   lastActivationA: Hands<number>;
   lastActivationB: Hands<number>;
@@ -99,8 +100,8 @@ export class MotionGesture {
 
   constructor(
     id: string,
-    conditionFnA: (hand: Hand) => boolean,
-    conditionFnB: (hand: Hand) => boolean,
+    conditionFnA: (hand: HandState) => boolean,
+    conditionFnB: (hand: HandState) => boolean,
     maxTimeInterval = 500,
     triggerCooldown = 500
   ) {
@@ -127,7 +128,7 @@ export class MotionGesture {
     };
   }
 
-  update(hand: Hand, h: Handedness, silent = false, timestamp = Date.now()) {
+  update(hand: HandState, h: Handedness, silent = false, timestamp = Date.now()) {
     if (silent || timestamp - this.lastTrigger[h] < this.triggerCooldown) return;
 
     if (this.conditionFnB(hand)) {
@@ -146,10 +147,10 @@ export class MotionGesture {
     }
   }
 
-  _onTriggerAB(hand: Hand, h: Handedness) {
+  _onTriggerAB(hand: HandState, h: Handedness) {
     this.onTriggerAB?.(this, hand, h);
   }
-  _onTriggerBA(hand: Hand, h: Handedness) {
+  _onTriggerBA(hand: HandState, h: Handedness) {
     this.onTriggerBA?.(this, hand, h);
   }
 }
@@ -164,7 +165,7 @@ export class PinchGesture extends HandGesture {
     activationThreshold = 2,
     activeCooldown = 33
   ) {
-    let detectPinch = (hand: Hand) => {
+    let detectPinch = (hand: HandState) => {
       const distances = fingerDistances(hand, LM.THUMB_TIP, fingers);
       return Math.max(...distances) < maxDistance;
     };
@@ -173,20 +174,20 @@ export class PinchGesture extends HandGesture {
     this.fingers = fingers;
   }
 
-  updateState(hand: Hand, h: Handedness) {
+  updateState(hand: HandState, h: Handedness) {
     const indices = this.fingers.map((f) => LM_TIPS[FINGERS[f]]);
     const newState = lmAverage(hand.landmarks, [LM.THUMB_TIP, ...indices]);
     this.state[h] = { ...this.state[h], ...newState };
     this.state[h].duration = (this.state[h]?.duration ?? 0) + 1;
   }
 
-  protected _onUpdate(hand: Hand, h: Handedness) {
+  protected _onUpdate(hand: HandState, h: Handedness) {
     this.updateState(hand, h);
     super._onUpdate(hand, h);
   }
 }
 
-export function fingerDistances(hand: Hand, reference: LM, fingers: Finger[]) {
+export function fingerDistances(hand: HandState, reference: LM, fingers: Finger[]) {
   const scale = handScale(hand.landmarks);
   return fingers.map((f) => lmDistance(hand.landmarks, reference, LM_TIPS[FINGERS[f]]) / scale);
 }

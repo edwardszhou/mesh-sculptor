@@ -1,9 +1,6 @@
 import { MotionGesture, type Gesture } from "./gesture";
 import { HANDEDNESSES, type Handedness, type HandsResult } from "./mediapipe";
-
-export type HandState = {
-  activeGesture: Gesture | null;
-};
+import { HandState } from "./handState";
 
 export type TrackedGesture = {
   gesture: Gesture;
@@ -18,12 +15,8 @@ export class HandsTracker {
 
   constructor() {
     this.gestures = [];
-    this.left = {
-      activeGesture: null
-    };
-    this.right = {
-      activeGesture: null
-    };
+    this.left = new HandState();
+    this.right = new HandState();
   }
 
   addGesture(gesture: Gesture, handedness?: Handedness, priority = 0) {
@@ -36,14 +29,27 @@ export class HandsTracker {
     this.gestures = this.gestures.filter((it) => it.gesture.id != id);
   }
 
-  update(hands: HandsResult) {
-    const now = Date.now();
+  update(handsResult: HandsResult) {
+    this.updateHands(handsResult);
+    this.updateGestures();
+  }
 
-    this.left.activeGesture = null;
-    this.right.activeGesture = null;
-
+  private updateHands(hands: HandsResult) {
     for (const h of HANDEDNESSES) {
       const hand = hands[h];
+      const state = this[h];
+      state.updateFromResult(hand);
+    }
+  }
+
+  private updateGestures() {
+    const now = Date.now();
+    this.left.gesture = null;
+    this.right.gesture = null;
+
+    for (const h of HANDEDNESSES) {
+      const hand = this[h];
+
       if (!hand) continue;
 
       for (const { gesture, handedness } of this.gestures) {
@@ -51,9 +57,9 @@ export class HandsTracker {
         if (handedness && handedness !== h) continue;
 
         // Silent update if gesture is already detected
-        if (this[h].activeGesture) gesture.update(hand, h, true, now);
+        if (hand.gesture) gesture.update(hand, h, true, now);
         // Set active gesture for hand
-        else this[h].activeGesture = gesture.update(hand, h, false, now) ? gesture : null;
+        else hand.gesture = gesture.update(hand, h, false, now) ? gesture : null;
       }
     }
   }

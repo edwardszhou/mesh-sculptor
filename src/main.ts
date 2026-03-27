@@ -5,6 +5,7 @@ import { Mediapipe } from "./gestures/mediapipe";
 import { Home } from "./ui/home";
 import { VoxelGrid } from "./voxel/grid";
 import { MarchingCubes } from "./mesh/marchingCubes";
+import { HandsTracker } from "./gestures/tracking";
 
 const FOV = 75;
 const NEAR = 0.1;
@@ -13,7 +14,7 @@ const FAR = 1000;
 const mpCanvas = document.getElementById("mediapipe-canvas") as HTMLCanvasElement;
 const mpVideo = document.getElementById("mediapipe-video") as HTMLVideoElement;
 
-const mediapipe = await Mediapipe.create(mpCanvas, mpVideo, true);
+const mediapipe = await Mediapipe.create(mpCanvas, mpVideo, false);
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
@@ -56,9 +57,12 @@ const marchedMesh = new THREE.Mesh(
 
 scene.add(marchedMesh);
 
+const handsTracker = new HandsTracker();
+
 function animate() {
   controls.update();
   mediapipe.predict();
+  handsTracker.update(mediapipe.results);
 
   if (resizeRenderer(renderer)) {
     const canvas = renderer.domElement;
@@ -78,7 +82,7 @@ function animate() {
   });
   marchingCubes.isosurface = Math.sin(Date.now() / 1000);
 
-  marchingCubes.triangulate();
+  // marchingCubes.triangulate();
   renderer.render(scene, camera);
   stats.update();
 }

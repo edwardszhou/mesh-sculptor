@@ -7,13 +7,13 @@ import {
 
 export type Handedness = "left" | "right";
 
-export type Hand = {
+export type HandResult = {
   landmarks: Landmark[];
   worldLandmarks: Landmark[];
 };
 
 export type Hands<T> = Record<Handedness, T>;
-export type HandsResult = Hands<Hand | null>;
+export type HandsResult = Hands<HandResult | null>;
 
 export const HANDEDNESSES = ["left", "right"] as const satisfies Handedness[];
 
