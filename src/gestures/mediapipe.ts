@@ -1,6 +1,5 @@
 import {
   HandLandmarker,
-  FilesetResolver,
   DrawingUtils,
   type HandLandmarkerResult,
   type Landmark
@@ -62,12 +61,19 @@ class Mediapipe {
     if (dummy) {
       return new Mediapipe(canvas, video, { dummy: true } as any);
     }
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-    );
+    const vision = {
+      wasmLoaderPath: new URL(
+        "/node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.js",
+        import.meta.url
+      ).href,
+      wasmBinaryPath: new URL(
+        "/node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm",
+        import.meta.url
+      ).href
+    };
     const landmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+        modelAssetPath: `/public/hand_landmarker.task`,
         delegate: "GPU"
       },
       runningMode: "VIDEO",
