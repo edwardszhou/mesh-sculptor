@@ -9,7 +9,7 @@ export const kalmanParams = {
 
 export const oneEuroParams = {
   minCutoff: 1.2,
-  beta: 2.0,
+  beta: 3.0,
   dCutoff: 1
 };
 
@@ -143,7 +143,7 @@ export class KalmanFilter {
   }
 
   filter(z: number, timestamp: number) {
-    if (this.lastTime === undefined) {
+    if (this.lastTime === undefined || timestamp - this.lastTime === 0) {
       this.lastTime = timestamp;
       return this.update(z);
     }
@@ -180,10 +180,11 @@ export class OneEuroFilter {
   }
 
   filter(value: number, timestamp: number) {
-    if (this.lastTime === undefined) {
+    if (this.lastTime === undefined || timestamp - this.lastTime === 0) {
       this.lastTime = timestamp;
       return this.x.filter(value);
     }
+
     const dt = timestamp - this.lastTime;
     this.lastTime = timestamp;
 

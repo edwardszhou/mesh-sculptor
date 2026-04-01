@@ -1,6 +1,6 @@
 import type { Landmark } from "@mediapipe/tasks-vision";
 import type { Gesture } from "./gesture";
-import { handScale, lmAverage } from "./landmarks";
+import { handScale, LM } from "./landmarks";
 import type { HandResult } from "./mediapipe";
 
 export class HandState {
@@ -43,10 +43,9 @@ export class HandState {
     this.landmarks = result.landmarks;
     this.worldLandmarks = result.worldLandmarks;
 
-    const avgLandmark = lmAverage(this.landmarks);
     this.transform.scale = handScale(result.landmarks);
-    this.transform.x = avgLandmark.x;
-    this.transform.y = avgLandmark.y;
+    this.transform.x = result.landmarks[LM.MIDDLE_MCP].x;
+    this.transform.y = result.landmarks[LM.MIDDLE_MCP].y;
     this.transform.z = Math.sqrt(this.transform.scale) * 3;
 
     this.relativeLandmarks = result.landmarks.map((lm) => ({
