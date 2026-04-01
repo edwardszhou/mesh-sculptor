@@ -6,8 +6,7 @@ import { Home } from "./ui/home";
 import { VoxelGrid } from "./voxel/grid";
 import { MarchingCubes } from "./mesh/marchingCubes";
 import { HandsTracker } from "./gestures/tracking";
-import { fingerDistances } from "./gestures/gesture";
-import { LM } from "./gestures/landmarks";
+import { FILTERS } from "./utils/filter";
 
 const FOV = 75;
 const NEAR = 0.1;
@@ -16,7 +15,7 @@ const FAR = 1000;
 const mpCanvas = document.getElementById("mediapipe-canvas") as HTMLCanvasElement;
 const mpVideo = document.getElementById("mediapipe-video") as HTMLVideoElement;
 
-const mediapipe = await Mediapipe.create(mpCanvas, mpVideo, false);
+const mediapipe = await Mediapipe.create(mpCanvas, mpVideo, FILTERS.ONEEURO, false);
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
@@ -74,7 +73,6 @@ function animate() {
   controls.update();
   mediapipe.predict();
   handsTracker.update(mediapipe.results);
-  fingerDistances(handsTracker.left, LM.WRIST, ["INDEX"]);
 
   if (resizeRenderer(renderer)) {
     const canvas = renderer.domElement;

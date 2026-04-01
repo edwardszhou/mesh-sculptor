@@ -2,6 +2,25 @@ type M2 = [[number, number], [number, number]];
 type V2 = [[number, number]];
 type V2T = [[number], [number]];
 
+export const kalmanParams = {
+  Q: 0.01,
+  R: 0.0001
+};
+
+export const oneEuroParams = {
+  minCutoff: 1.2,
+  beta: 2.0,
+  dCutoff: 1
+};
+
+export const FILTERS = {
+  KALMAN: "kalman",
+  ONEEURO: "oneEuro",
+  NONE: "none"
+} as const;
+
+export type Filter = (typeof FILTERS)[keyof typeof FILTERS];
+
 export class LowPassFilter {
   factor: number;
   prev: number | null;
@@ -11,34 +30,34 @@ export class LowPassFilter {
     this.prev = null;
   }
   filter(z: number) {
-    if (this.prev) z = this.prev * this.factor + z * (1 - this.factor);
+    if (this.prev !== null) z = z * this.factor + this.prev * (1 - this.factor);
     this.prev = z;
     return z;
   }
 }
 
 export class KalmanFilter {
-  dt: number;
   Q: number;
   R: number;
   x: V2T;
   P: M2;
   F: M2;
   H: V2;
-  constructor(dt: number, processNoise: number, observationNoise: number) {
+  lastTime?: number;
+
+  constructor(processNoise: number, observationNoise: number) {
     const state = [[0], [0]] satisfies V2T; // Initial state (pos, vel)
     const stateCovariance = [
       [1, 0], // Initial state variance
       [0, 1]
     ] satisfies M2;
     const stateTransition = [
-      [1, dt], // pos_k+1 = pos_k + dt * vel_k
+      [1, 0], // pos_k+1 = pos_k + dt * vel_k
       [0, 1]
     ] satisfies M2; // vel_k+1 = vel_k
 
     const observationModel = [[1, 0]] satisfies V2; // Update state from position
 
-    this.dt = dt;
     this.Q = processNoise;
     this.R = observationNoise;
 
@@ -48,15 +67,21 @@ export class KalmanFilter {
     this.H = observationModel;
   }
 
-  predict() {
+  predict(dt: number) {
     const F = this.F;
     const P = this.P;
     const Q = this.Q;
+
+    F[0][1] = dt;
     // x_k = Fx
     const x_new = [
       [F[0][0] * this.x[0][0] + F[0][1] * this.x[1][0]],
       [F[1][0] * this.x[0][0] + F[1][1] * this.x[1][0]]
     ] satisfies V2T;
+
+    const q11 = Q * dt * dt;
+    const q01 = q11 * dt * 0.5;
+    const q00 = q01 * dt * 0.5;
 
     // P = FPF^T + Q
     const P_new = [
@@ -65,24 +90,26 @@ export class KalmanFilter {
           F[0][1] * P[1][0] * F[0][0] +
           F[0][0] * P[0][1] * F[0][1] +
           F[0][1] * P[1][1] * F[0][1] +
-          Q,
+          q00,
 
         F[0][0] * P[0][0] * F[1][0] +
           F[0][1] * P[1][0] * F[1][0] +
           F[0][0] * P[0][1] * F[1][1] +
-          F[0][1] * P[1][1] * F[1][1]
+          F[0][1] * P[1][1] * F[1][1] +
+          q01
       ],
       [
         F[1][0] * P[0][0] * F[0][0] +
           F[1][1] * P[1][0] * F[0][0] +
           F[1][0] * P[0][1] * F[0][1] +
-          F[1][1] * P[1][1] * F[0][1],
+          F[1][1] * P[1][1] * F[0][1] +
+          q01,
 
         F[1][0] * P[0][0] * F[1][0] +
           F[1][1] * P[1][0] * F[1][0] +
           F[1][0] * P[0][1] * F[1][1] +
           F[1][1] * P[1][1] * F[1][1] +
-          Q
+          q11
       ]
     ] satisfies M2;
 
@@ -115,14 +142,20 @@ export class KalmanFilter {
     return this.x[0][0];
   }
 
-  filter(z: number) {
-    this.predict();
+  filter(z: number, timestamp: number) {
+    if (this.lastTime === undefined) {
+      this.lastTime = timestamp;
+      return this.update(z);
+    }
+
+    const dt = timestamp - this.lastTime;
+    this.predict(dt);
+
     return this.update(z);
   }
 }
 
 export class OneEuroFilter {
-  freq: number;
   minCutoff: number;
   beta: number;
   dCutoff: number;
@@ -130,30 +163,37 @@ export class OneEuroFilter {
   x: LowPassFilter;
   dx: LowPassFilter;
 
-  constructor(freq: number, minCutoff = 1.0, beta = 0.2, dCutoff = 1.0) {
-    this.freq = freq;
+  lastTime?: number;
+
+  constructor(minCutoff = 1.0, beta = 0.2, dCutoff = 1.0) {
     this.minCutoff = minCutoff;
     this.beta = beta;
     this.dCutoff = dCutoff;
 
-    this.x = new LowPassFilter(this.alpha(minCutoff));
-    this.dx = new LowPassFilter(this.alpha(dCutoff));
+    this.x = new LowPassFilter(1);
+    this.dx = new LowPassFilter(1);
   }
 
-  alpha(cutoff: number) {
-    const te = 1 / this.freq;
+  alpha(dt: number, cutoff: number) {
     const tau = 1 / (2 * Math.PI * cutoff);
-    return 1 / (1 + tau / te);
+    return 1 / (1 + tau / dt);
   }
 
-  filter(value: number) {
-    const dvalue = (value - (this.x.prev ?? 0)) * this.freq;
+  filter(value: number, timestamp: number) {
+    if (this.lastTime === undefined) {
+      this.lastTime = timestamp;
+      return this.x.filter(value);
+    }
+    const dt = timestamp - this.lastTime;
+    this.lastTime = timestamp;
 
-    this.dx.factor = this.alpha(this.dCutoff);
+    const dvalue = (value - (this.x.prev ?? value)) / dt;
+
+    this.dx.factor = this.alpha(dt, this.dCutoff);
     const edvalue = this.dx.filter(dvalue);
     const cutoff = this.minCutoff + this.beta * Math.abs(edvalue);
 
-    this.x.factor = this.alpha(cutoff);
+    this.x.factor = this.alpha(dt, cutoff);
     return this.x.filter(value);
   }
 }

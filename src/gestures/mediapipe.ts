@@ -4,6 +4,14 @@ import {
   type HandLandmarkerResult,
   type Landmark
 } from "@mediapipe/tasks-vision";
+import {
+  FILTERS,
+  KalmanFilter,
+  kalmanParams,
+  OneEuroFilter,
+  oneEuroParams,
+  type Filter
+} from "../utils/filter";
 
 export type Handedness = "left" | "right";
 
@@ -16,6 +24,15 @@ export type Hands<T> = Record<Handedness, T>;
 export type HandsResult = Hands<HandResult | null>;
 
 export const HANDEDNESSES = ["left", "right"] as const satisfies Handedness[];
+
+type FilterSet = {
+  x: KalmanFilter | OneEuroFilter;
+  y: KalmanFilter | OneEuroFilter;
+  z: KalmanFilter | OneEuroFilter;
+  worldX: KalmanFilter | OneEuroFilter;
+  worldY: KalmanFilter | OneEuroFilter;
+  worldZ: KalmanFilter | OneEuroFilter;
+};
 
 const videoState = {
   x: 0,
@@ -35,6 +52,9 @@ class Mediapipe {
   private drawUtils: DrawingUtils;
   private landmarker: HandLandmarker;
 
+  filterType: Filter;
+  filters: Hands<FilterSet[]> | null;
+
   results: HandsResult;
 
   isReady: boolean;
@@ -43,6 +63,7 @@ class Mediapipe {
   private constructor(
     canvas: HTMLCanvasElement,
     video: HTMLVideoElement,
+    filter: Filter,
     landmarker: HandLandmarker
   ) {
     this.canvas = canvas;
@@ -53,13 +74,22 @@ class Mediapipe {
     this.drawUtils = new DrawingUtils(this.ctx);
     this.results = { left: null, right: null };
 
+    this.filterType = filter;
+    this.filters = { left: [], right: [] };
+    this.initFilters();
+
     this.isReady = false;
     this.isDebug = true;
   }
 
-  static async create(canvas: HTMLCanvasElement, video: HTMLVideoElement, dummy: boolean = false) {
+  static async create(
+    canvas: HTMLCanvasElement,
+    video: HTMLVideoElement,
+    filter: Filter,
+    dummy: boolean = false
+  ) {
     if (dummy) {
-      return new Mediapipe(canvas, video, { dummy: true } as any);
+      return new Mediapipe(canvas, video, filter, { dummy: true } as any);
     }
     const vision = {
       wasmLoaderPath: new URL(
@@ -79,11 +109,12 @@ class Mediapipe {
       runningMode: "VIDEO",
       numHands: 2
     });
-    return new Mediapipe(canvas, video, landmarker);
+    return new Mediapipe(canvas, video, filter, landmarker);
   }
 
   async init() {
     if ((this.landmarker as any).dummy) return;
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         width: { ideal: 320 },
@@ -107,8 +138,9 @@ class Mediapipe {
     if (video.lastVideoTime !== video.currentTime) {
       video.lastVideoTime = video.currentTime;
 
+      const now = performance.now();
       const initialResults = this.landmarker.detectForVideo(this.video, performance.now());
-      this.processResults(initialResults);
+      this.processResults(initialResults, now / 1000);
     }
 
     if (this.isDebug) {
@@ -136,27 +168,57 @@ class Mediapipe {
     }
   }
 
-  private processResults(results: HandLandmarkerResult) {
+  private processResults(results: HandLandmarkerResult, timestamp: number) {
     this.results.left = null;
     this.results.right = null;
 
     for (let i = 0; i < results.landmarks.length; i++) {
       const handedness = results.handedness[i][0].displayName.toLowerCase() as Handedness;
 
-      const landmarks = results.landmarks[i].map((lm) => this.transformLandmark(lm));
-      const worldLandmarks = results.worldLandmarks[i].map((lm) => this.transformLandmark(lm));
+      const landmarks = results.landmarks[i].map((lm, i) =>
+        this.transformLandmark(lm, i, handedness, timestamp)
+      );
+      const worldLandmarks = results.worldLandmarks[i].map((lm, i) =>
+        this.transformWorldLandmark(lm, i, handedness, timestamp)
+      );
 
       this.results[handedness] = { landmarks, worldLandmarks };
     }
   }
 
-  private transformLandmark(lm: Landmark): Landmark {
-    return {
-      x: 1 - (videoState.x + lm.x * videoState.w) / this.canvas.width,
-      y: (videoState.y + lm.y * videoState.h) / this.canvas.height,
-      z: lm.z,
-      visibility: lm.visibility
-    };
+  private transformLandmark(lm: Landmark, i: number, h: Handedness, timestamp: number): Landmark {
+    const newX = 1 - (videoState.x + lm.x * videoState.w) / this.canvas.width;
+    const newY = (videoState.y + lm.y * videoState.h) / this.canvas.height;
+    const newZ = lm.z;
+
+    return this.filters === null || h === "right"
+      ? { x: newX, y: newY, z: newZ, visibility: lm.visibility }
+      : {
+          x: this.filters[h][i].x.filter(newX, timestamp),
+          y: this.filters[h][i].y.filter(newY, timestamp),
+          z: this.filters[h][i].z.filter(newZ, timestamp),
+          visibility: lm.visibility
+        };
+  }
+
+  private transformWorldLandmark(
+    lm: Landmark,
+    i: number,
+    h: Handedness,
+    timestamp: number
+  ): Landmark {
+    const newX = 1 - lm.x;
+    const newY = lm.y;
+    const newZ = lm.z;
+
+    return this.filters === null
+      ? { x: newX, y: newY, z: newZ, visibility: lm.visibility }
+      : {
+          x: this.filters[h][i].worldX.filter(newX, timestamp),
+          y: this.filters[h][i].worldY.filter(newY, timestamp),
+          z: this.filters[h][i].worldZ.filter(newZ, timestamp),
+          visibility: lm.visibility
+        };
   }
 
   private drawDebug() {
@@ -177,6 +239,39 @@ class Mediapipe {
     }
 
     this.ctx.restore();
+  }
+
+  private initFilters() {
+    this.filters = { left: new Array(21).fill({}), right: new Array(21).fill({}) };
+    for (const h of HANDEDNESSES) {
+      if (this.filterType === FILTERS.KALMAN) {
+        const { Q, R } = kalmanParams;
+        for (let i = 0; i < 21; i++) {
+          this.filters![h][i] = {
+            x: new KalmanFilter(Q, R),
+            y: new KalmanFilter(Q, R),
+            z: new KalmanFilter(Q, R),
+            worldX: new KalmanFilter(Q, R),
+            worldY: new KalmanFilter(Q, R),
+            worldZ: new KalmanFilter(Q, R)
+          };
+        }
+      } else if (this.filterType === FILTERS.ONEEURO) {
+        const { minCutoff, beta, dCutoff } = oneEuroParams;
+        for (let i = 0; i < 21; i++) {
+          this.filters![h][i] = {
+            x: new OneEuroFilter(minCutoff, beta, dCutoff),
+            y: new OneEuroFilter(minCutoff, beta, dCutoff),
+            z: new OneEuroFilter(minCutoff, beta, dCutoff),
+            worldX: new OneEuroFilter(minCutoff, beta, dCutoff),
+            worldY: new OneEuroFilter(minCutoff, beta, dCutoff),
+            worldZ: new OneEuroFilter(minCutoff, beta, dCutoff)
+          };
+        }
+      } else if (this.filterType === FILTERS.NONE) {
+        this.filters = null;
+      }
+    }
   }
 }
 
