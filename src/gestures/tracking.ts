@@ -1,6 +1,7 @@
 import { MotionGesture, type Gesture } from "./gesture";
 import { HANDEDNESSES, type Handedness, type HandsResult } from "./mediapipe";
 import { HandState } from "./handState";
+import type { SculptScene } from "../render/scene";
 
 export type TrackedGesture = {
   gesture: Gesture;
@@ -29,16 +30,16 @@ export class HandsTracker {
     this.gestures = this.gestures.filter((it) => it.gesture.id != id);
   }
 
-  update(handsResult: HandsResult) {
-    this.updateHands(handsResult);
+  update(handsResult: HandsResult, scene: SculptScene) {
+    this.updateHands(handsResult, scene);
     this.updateGestures();
   }
 
-  private updateHands(hands: HandsResult) {
+  private updateHands(hands: HandsResult, scene: SculptScene) {
     for (const h of HANDEDNESSES) {
       const hand = hands[h];
       const state = this[h];
-      state.updateFromResult(hand);
+      state.updateFromResult(hand, scene);
     }
   }
 

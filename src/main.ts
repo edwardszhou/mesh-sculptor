@@ -59,12 +59,12 @@ scene.resize = () => {
 };
 scene.animate = () => {
   mediapipe.predict();
-  handsTracker.update(mediapipe.results);
+  handsTracker.update(mediapipe.results, scene);
 
   if (handsTracker.left.landmarks.length) {
     const landmarks = handsTracker.left.sceneLandmarks;
     for (let i = 0; i < 21; i++) {
-      handMarkers[i].position.set(landmarks[i].x * 10, landmarks[i].y * 10, landmarks[i].z * 10);
+      handMarkers[i].position.set(landmarks[i].x, landmarks[i].y, landmarks[i].z);
     }
   }
 
