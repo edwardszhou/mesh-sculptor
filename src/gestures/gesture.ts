@@ -155,10 +155,10 @@ export class MotionGesture {
     }
   }
 
-  _onTriggerAB(hand: HandState, h: Handedness) {
+  protected _onTriggerAB(hand: HandState, h: Handedness) {
     this.onTriggerAB?.(this, hand, h);
   }
-  _onTriggerBA(hand: HandState, h: Handedness) {
+  protected _onTriggerBA(hand: HandState, h: Handedness) {
     this.onTriggerBA?.(this, hand, h);
   }
 }

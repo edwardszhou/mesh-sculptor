@@ -47,6 +47,7 @@ export class HandState {
     this.transform.x = result.landmarks[LM.MIDDLE_MCP].x;
     this.transform.y = result.landmarks[LM.MIDDLE_MCP].y;
     this.transform.z = Math.sqrt(this.transform.scale) * 3;
+    console.log(this.transform.x, this.transform.y, this.transform.z);
 
     this.relativeLandmarks = result.landmarks.map((lm) => ({
       x: lm.x / this.transform.scale,

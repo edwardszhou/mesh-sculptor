@@ -10,18 +10,18 @@ class MarchingCubes {
   isosurface: number;
 
   grid: VoxelGrid;
-  normalCache: Float32Array;
-  colorCache: Float32Array;
+  private normalCache: Float32Array;
+  private colorCache: Float32Array;
 
-  positionArray: Float32Array;
-  normalArray: Float32Array;
-  uvArray: Float32Array;
-  colorArray: Float32Array;
-  vertexCount: number;
+  private positionArray: Float32Array;
+  private normalArray: Float32Array;
+  private uvArray: Float32Array;
+  private colorArray: Float32Array;
+  private vertexCount: number;
 
-  tempPos: Float32Array;
-  tempNor: Float32Array;
-  tempCol: Float32Array;
+  private tempPos: Float32Array;
+  private tempNor: Float32Array;
+  private tempCol: Float32Array;
 
   constructor(grid: VoxelGrid, enableUvs = false, enableColors = false, maxVertexCount = 300000) {
     this.geometry = new THREE.BufferGeometry();

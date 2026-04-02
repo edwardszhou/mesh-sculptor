@@ -1,8 +1,8 @@
 class Home {
-  container: HTMLElement;
-  btn: HTMLButtonElement;
-  btnLabel: HTMLElement;
-  errorNode: HTMLElement;
+  private container: HTMLElement;
+  private btn: HTMLButtonElement;
+  private btnLabel: HTMLElement;
+  private errorNode: HTMLElement;
   tryStart?: () => void;
 
   constructor() {

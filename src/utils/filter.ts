@@ -29,6 +29,7 @@ export class LowPassFilter {
     this.factor = factor;
     this.prev = null;
   }
+
   filter(z: number) {
     if (this.prev !== null) z = z * this.factor + this.prev * (1 - this.factor);
     this.prev = z;
@@ -39,11 +40,11 @@ export class LowPassFilter {
 export class KalmanFilter {
   Q: number;
   R: number;
-  x: V2T;
-  P: M2;
-  F: M2;
-  H: V2;
-  lastTime?: number;
+  private x: V2T;
+  private P: M2;
+  private F: M2;
+  private H: V2;
+  private lastTime?: number;
 
   constructor(processNoise: number, observationNoise: number) {
     const state = [[0], [0]] satisfies V2T; // Initial state (pos, vel)
@@ -67,7 +68,7 @@ export class KalmanFilter {
     this.H = observationModel;
   }
 
-  predict(dt: number) {
+  private predict(dt: number) {
     const F = this.F;
     const P = this.P;
     const Q = this.Q;
@@ -117,7 +118,7 @@ export class KalmanFilter {
     this.x = x_new;
   }
 
-  update(z: number) {
+  private update(z: number) {
     const P = this.P;
     const H = this.H;
     // y = z - Hx
@@ -160,10 +161,10 @@ export class OneEuroFilter {
   beta: number;
   dCutoff: number;
 
-  x: LowPassFilter;
-  dx: LowPassFilter;
+  private x: LowPassFilter;
+  private dx: LowPassFilter;
 
-  lastTime?: number;
+  private lastTime?: number;
 
   constructor(minCutoff = 1.0, beta = 0.2, dCutoff = 1.0) {
     this.minCutoff = minCutoff;
@@ -174,7 +175,7 @@ export class OneEuroFilter {
     this.dx = new LowPassFilter(1);
   }
 
-  alpha(dt: number, cutoff: number) {
+  private alpha(dt: number, cutoff: number) {
     const tau = 1 / (2 * Math.PI * cutoff);
     return 1 / (1 + tau / dt);
   }
