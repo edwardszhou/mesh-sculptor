@@ -114,9 +114,9 @@ class MarchingCubes {
     if (this.normalCache[nIdx] === 0.0) {
       // only compute if not cached
       const grid = this.grid;
-      this.normalCache[nIdx + 0] = grid.data[nIdx - grid.dx] - grid.data[nIdx + grid.dx];
-      this.normalCache[nIdx + 1] = grid.data[nIdx - grid.dy] - grid.data[nIdx + grid.dy];
-      this.normalCache[nIdx + 2] = grid.data[nIdx - grid.dz] - grid.data[nIdx + grid.dz];
+      this.normalCache[nIdx + 0] = grid.data[vIdx + grid.dx] - grid.data[vIdx - grid.dx];
+      this.normalCache[nIdx + 1] = grid.data[vIdx + grid.dy] - grid.data[vIdx - grid.dy];
+      this.normalCache[nIdx + 2] = grid.data[vIdx + grid.dz] - grid.data[vIdx - grid.dz];
     }
   }
 
@@ -244,6 +244,11 @@ class MarchingCubes {
   }
 
   private createTriangle(edge1: number, edge2: number, edge3: number) {
+    // correct winding order
+    const tmp = edge1;
+    edge1 = edge2;
+    edge2 = tmp;
+
     let offset = this.vertexCount * 3;
 
     const posOffset = this.grid.halfSize;
