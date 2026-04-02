@@ -1,14 +1,6 @@
 import { clamp } from "../utils/math";
 import type { Handedness, Hands } from "./mediapipe";
-import {
-  FINGERS,
-  LM,
-  LM_TIPS,
-  lmAverage,
-  lmDistance,
-  lmDistance2D,
-  type Finger
-} from "./landmarks";
+import { FINGERS, LM, LM_TIPS, lmAverage, lmDistance2D, type Finger } from "./landmarks";
 import type { HandState } from "./handState";
 
 export type Gesture = HandGesture | MotionGesture;

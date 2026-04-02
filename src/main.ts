@@ -7,6 +7,7 @@ import { MarchingCubes } from "./mesh/marchingCubes";
 import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
+import { LM } from "./gestures/landmarks";
 
 const scene = new SculptScene();
 
@@ -36,15 +37,18 @@ const marchingCubes = new MarchingCubes(voxelGrid);
 marchingCubes.triangulate();
 const marchedMesh = new THREE.Mesh(
   marchingCubes.geometry,
-  new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true })
+  new THREE.MeshPhysicalMaterial({ color: 0xffff00, wireframe: false })
 );
 
 const handsTracker = new HandsTracker(true);
 
 scene.add(clayMesh);
-scene.add(voxelGrid.mesh);
+// scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
-scene.add(handsTracker.mesh);
+scene.add(handsTracker.mesh.bones);
+scene.add(handsTracker.mesh.points);
+handsTracker.mesh.setColors(new THREE.Color(0xff0000), "left", [LM.INDEX_TIP, LM.THUMB_TIP]);
+handsTracker.mesh.setColors(new THREE.Color(0xff0000), "right", [LM.INDEX_TIP, LM.THUMB_TIP]);
 
 scene.resize = () => {
   mediapipe.resize();

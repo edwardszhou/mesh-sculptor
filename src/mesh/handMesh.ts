@@ -1,10 +1,11 @@
 import * as THREE from "three";
-import { NUM_LMS } from "../gestures/landmarks";
+import { NUM_LMS, type LM } from "../gestures/landmarks";
 import { HandLandmarker } from "@mediapipe/tasks-vision";
 import { HANDEDNESSES, type Handedness } from "../gestures/mediapipe";
 import type { HandState } from "../gestures/handState";
 
 const CONNECTIONS = HandLandmarker.HAND_CONNECTIONS;
+const UP = new THREE.Vector3(0, 1, 0);
 
 class HandMesh {
   points: THREE.InstancedMesh;
@@ -16,23 +17,22 @@ class HandMesh {
   private _boneScale = new THREE.Vector3();
   private _bonePos = new THREE.Vector3();
   private _boneDir = new THREE.Vector3();
-  private _boneUp = new THREE.Vector3(0, 1, 0);
 
   constructor() {
-    const pointsMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-    const pointsGeometry = new THREE.SphereGeometry(0.05);
+    const pointsMaterial = new THREE.MeshPhysicalMaterial({ color: 0xffffff });
+    const pointsGeometry = new THREE.SphereGeometry(0.12);
     const numPoints = NUM_LMS * 2;
     this.points = new THREE.InstancedMesh(pointsGeometry, pointsMaterial, numPoints);
     this.points.frustumCulled = false;
 
-    const bonesMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-    const bonesGeometry = new THREE.CylinderGeometry(0.03, 0.03, 1, 8);
+    const bonesMaterial = new THREE.MeshPhysicalMaterial({ color: 0xffffff });
+    const bonesGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1, 8);
     const numBones = CONNECTIONS.length * 2;
     this.bones = new THREE.InstancedMesh(bonesGeometry, bonesMaterial, numBones);
     this.bones.frustumCulled = false;
   }
 
-  update(h: Handedness, hand: HandState) {
+  update(hand: HandState, h: Handedness) {
     const handIndex = HANDEDNESSES.indexOf(h);
     const pointOffset = NUM_LMS * handIndex;
     const boneOffset = CONNECTIONS.length * handIndex;
@@ -67,11 +67,19 @@ class HandMesh {
       const length = this._boneDir.length();
       this._boneScale.set(1, length, 1);
       this._boneDir.normalize();
-      this._boneQuat.setFromUnitVectors(this._boneUp, this._boneDir);
+      this._boneQuat.setFromUnitVectors(UP, this._boneDir);
       this._boneMatrix.compose(this._bonePos, this._boneQuat, this._boneScale);
       this.bones.setMatrixAt(boneOffset + i, this._boneMatrix);
     }
     this.bones.instanceMatrix.needsUpdate = true;
+  }
+
+  setColors(color: THREE.Color, h: Handedness, landmarks: LM[]) {
+    const pointOffset = NUM_LMS * HANDEDNESSES.indexOf(h);
+    for (let lm of landmarks) {
+      this.points.setColorAt(pointOffset + lm, color);
+    }
+    this.points.instanceMatrix.needsUpdate = true;
   }
 }
 
