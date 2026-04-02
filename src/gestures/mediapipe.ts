@@ -12,6 +12,7 @@ import {
   oneEuroParams,
   type Filter
 } from "../utils/filter";
+import { NUM_LMS } from "./landmarks";
 
 export type Handedness = "left" | "right";
 
@@ -191,7 +192,7 @@ class Mediapipe {
     const newY = (videoState.y + lm.y * videoState.h) / this.canvas.height;
     const newZ = lm.z;
 
-    return this.filters === null || h === "right"
+    return this.filters === null
       ? { x: newX, y: newY, z: newZ, visibility: lm.visibility }
       : {
           x: this.filters[h][i].x.filter(newX, timestamp),
@@ -246,7 +247,7 @@ class Mediapipe {
     for (const h of HANDEDNESSES) {
       if (this.filterType === FILTERS.KALMAN) {
         const { Q, R } = kalmanParams;
-        for (let i = 0; i < 21; i++) {
+        for (let i = 0; i < NUM_LMS; i++) {
           this.filters![h][i] = {
             x: new KalmanFilter(Q, R),
             y: new KalmanFilter(Q, R),
@@ -258,7 +259,7 @@ class Mediapipe {
         }
       } else if (this.filterType === FILTERS.ONEEURO) {
         const { minCutoff, beta, dCutoff } = oneEuroParams;
-        for (let i = 0; i < 21; i++) {
+        for (let i = 0; i < NUM_LMS; i++) {
           this.filters![h][i] = {
             x: new OneEuroFilter(minCutoff, beta, dCutoff),
             y: new OneEuroFilter(minCutoff, beta, dCutoff),

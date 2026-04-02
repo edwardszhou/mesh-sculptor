@@ -39,20 +39,12 @@ const marchedMesh = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true })
 );
 
-const handsTracker = new HandsTracker();
-
-let handMarkers: THREE.Mesh[] = [];
-const handGeometry = new THREE.SphereGeometry(0.1);
-const handMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-for (let i = 0; i < 21; i++) {
-  const marker = new THREE.Mesh(handGeometry, handMaterial);
-  handMarkers.push(marker);
-  scene.add(marker);
-}
+const handsTracker = new HandsTracker(true);
 
 scene.add(clayMesh);
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
+scene.add(handsTracker.mesh);
 
 scene.resize = () => {
   mediapipe.resize();
@@ -60,15 +52,6 @@ scene.resize = () => {
 scene.animate = () => {
   mediapipe.predict();
   handsTracker.update(mediapipe.results, scene);
-
-  if (handsTracker.left.landmarks.length) {
-    const landmarks = handsTracker.left.sceneLandmarks;
-    for (let i = 0; i < 21; i++) {
-      handMarkers[i].position.set(landmarks[i].x, landmarks[i].y, landmarks[i].z);
-    }
-  }
-
-  console.log(scene.screenToWorld(0, 0.5));
   marchingCubes.triangulate();
   stats.update();
 };

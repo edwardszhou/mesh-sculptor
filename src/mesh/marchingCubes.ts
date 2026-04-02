@@ -341,7 +341,7 @@ class MarchingCubes {
       console.log("Marching cubes max vertex count exceeded.");
 
     const end = performance.now();
-    console.log("Marching Cubes full triangulation: ", end - start);
+    // console.log("Marching Cubes full triangulation: ", end - start);
   }
 }
 

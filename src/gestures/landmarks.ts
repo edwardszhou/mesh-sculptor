@@ -40,6 +40,8 @@ export const LM_FINGERTIPS = Object.values(LM_FINGERS)
   .slice(1)
   .map((f) => f[3]) as readonly LM[];
 
+export const NUM_LMS = Object.values(LM).length;
+
 export const FINGERS = {
   THUMB: 0,
   INDEX: 1,
