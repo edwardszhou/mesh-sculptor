@@ -61,7 +61,7 @@ export class HandsTracker {
     for (const h of HANDEDNESSES) {
       const hand = this[h];
 
-      if (!hand) continue;
+      if (!hand.present) continue;
 
       for (const { gesture, handedness } of this.gestures) {
         // Skip if gesture is meant for different hand

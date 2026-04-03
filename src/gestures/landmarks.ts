@@ -50,7 +50,7 @@ export const FINGERS = {
   PINKY: 4
 } as const;
 
-export type Finger = keyof typeof FINGERS;
+export type Finger = (typeof FINGERS)[keyof typeof FINGERS];
 
 export function handScale(landmarks: Landmark[]) {
   // Get hand scale in 3D space based on palm size from landmarks

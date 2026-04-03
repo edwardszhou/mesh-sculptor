@@ -79,7 +79,7 @@ class HandMesh {
     for (let lm of landmarks) {
       this.points.setColorAt(pointOffset + lm, color);
     }
-    this.points.instanceMatrix.needsUpdate = true;
+    this.points.instanceColor!.needsUpdate = true;
   }
 }
 

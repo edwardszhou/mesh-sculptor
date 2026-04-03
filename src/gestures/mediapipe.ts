@@ -61,15 +61,10 @@ class Mediapipe {
   isReady: boolean;
   isDebug: boolean;
 
-  private constructor(
-    canvas: HTMLCanvasElement,
-    video: HTMLVideoElement,
-    filter: Filter,
-    landmarker: HandLandmarker
-  ) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d")!;
-    this.video = video;
+  private constructor(filter: Filter, landmarker: HandLandmarker) {
+    this.canvas = document.getElementById("mediapipe-canvas") as HTMLCanvasElement;
+    this.video = document.getElementById("mediapipe-video") as HTMLVideoElement;
+    this.ctx = this.canvas.getContext("2d")!;
 
     this.landmarker = landmarker;
     this.drawUtils = new DrawingUtils(this.ctx);
@@ -83,15 +78,11 @@ class Mediapipe {
     this.isDebug = true;
   }
 
-  static async create(
-    canvas: HTMLCanvasElement,
-    video: HTMLVideoElement,
-    filter: Filter,
-    dummy: boolean = false
-  ) {
+  static async create(filter: Filter, dummy: boolean = false) {
     if (dummy) {
-      return new Mediapipe(canvas, video, filter, { dummy: true } as any);
+      return new Mediapipe(filter, { dummy: true } as any);
     }
+
     const vision = {
       wasmLoaderPath: new URL(
         "/node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.js",
@@ -110,7 +101,7 @@ class Mediapipe {
       runningMode: "VIDEO",
       numHands: 2
     });
-    return new Mediapipe(canvas, video, filter, landmarker);
+    return new Mediapipe(filter, landmarker);
   }
 
   async init() {
