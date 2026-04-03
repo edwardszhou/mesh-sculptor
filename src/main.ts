@@ -20,11 +20,11 @@ const appContainer = document.getElementById("app-container") as HTMLDivElement;
 const stats = new Stats();
 appContainer.appendChild(stats.dom);
 
-const voxelGrid = new VoxelGrid(48, 2, true);
-// voxelGrid.setSDF((x, y, z) => {
-//   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
-//   return sphere;
-// });
+const voxelGrid = new VoxelGrid(48, 3, true);
+voxelGrid.setSDF((x, y, z) => {
+  const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
+  return sphere;
+});
 
 const marchingCubes = new MarchingCubes(voxelGrid);
 marchingCubes.triangulate();
@@ -40,9 +40,18 @@ const pinchMarker = new THREE.Mesh(
   new THREE.SphereGeometry(0.5),
   new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: false })
 );
-pinchGesture.onUpdate = (gesture, _hand, h) => {
+pinchGesture.onUpdate = (gesture, hand, h) => {
   const state = gesture.state[h];
-  pinchMarker.position.set(state.x, state.y, state.z);
+  if (!state.duration) {
+    const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+    voxelGrid.applyMaxSDF((x, y, z) => {
+      x -= indexPos.x;
+      y -= indexPos.y;
+      z -= indexPos.z;
+      const sphere = -Math.sqrt(x * x + y * y + z * z) + 0.2;
+      return sphere;
+    });
+  }
 };
 pinchGesture.onStart = (_gesture, _hand, h) => {
   handsTracker.mesh.setColors(new THREE.Color(0xff0000), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
@@ -56,7 +65,7 @@ pinchGesture.onActive = (gesture, _hand, h) => {
     x -= state.x;
     y -= state.y;
     z -= state.z;
-    const sphere = Math.sqrt(x * x + y * y + z * z) - 0.1;
+    const sphere = Math.sqrt(x * x + y * y + z * z) - 0.2;
     return sphere;
   });
 };

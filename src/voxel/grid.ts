@@ -123,6 +123,23 @@ class VoxelGrid {
     this.updateMesh();
   }
 
+  applyMaxSDF(sdf: SDF) {
+    const offset = this.worldSize / 2;
+    for (let i = 0; i < this.resolution; i++) {
+      const x = i * this.voxelSize - offset + this.voxelSize / 2;
+      for (let j = 0; j < this.resolution; j++) {
+        const y = j * this.voxelSize - offset + this.voxelSize / 2;
+        for (let k = 0; k < this.resolution; k++) {
+          const z = k * this.voxelSize - offset + this.voxelSize / 2;
+          const val = sdf(x, y, z);
+          const prev = this.getVoxel(i, j, k);
+          this.setVoxel(i, j, k, Math.max(prev, val));
+        }
+      }
+    }
+    this.updateMesh();
+  }
+
   setGrid(val: number) {
     this.data.fill(val);
   }
