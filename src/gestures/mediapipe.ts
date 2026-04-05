@@ -59,9 +59,9 @@ class Mediapipe {
   results: HandsResult;
 
   isReady: boolean;
-  isDebug: boolean;
+  showDebug: boolean;
 
-  private constructor(filter: Filter, landmarker: HandLandmarker) {
+  private constructor(filter: Filter, showDebug: boolean, landmarker: HandLandmarker) {
     this.canvas = document.getElementById("mediapipe-canvas") as HTMLCanvasElement;
     this.video = document.getElementById("mediapipe-video") as HTMLVideoElement;
     this.ctx = this.canvas.getContext("2d")!;
@@ -75,12 +75,12 @@ class Mediapipe {
     this.initFilters();
 
     this.isReady = false;
-    this.isDebug = true;
+    this.showDebug = showDebug;
   }
 
-  static async create(filter: Filter, dummy: boolean = false) {
+  static async create(filter: Filter, showDebug: boolean = false, dummy: boolean = false) {
     if (dummy) {
-      return new Mediapipe(filter, { dummy: true } as any);
+      return new Mediapipe(filter, showDebug, { dummy: true } as any);
     }
 
     const vision = {
@@ -101,7 +101,7 @@ class Mediapipe {
       runningMode: "VIDEO",
       numHands: 2
     });
-    return new Mediapipe(filter, landmarker);
+    return new Mediapipe(filter, showDebug, landmarker);
   }
 
   async init() {
@@ -135,7 +135,7 @@ class Mediapipe {
       this.processResults(initialResults, now / 1000);
     }
 
-    if (this.isDebug) {
+    if (this.showDebug) {
       this.drawDebug();
     }
   }

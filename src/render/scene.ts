@@ -4,7 +4,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const FOV = 75;
 const NEAR = 0.1;
 const FAR = 1000;
-const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 1, 5);
+const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 1, 2.5);
 const Z_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
 class SculptScene {
@@ -13,11 +13,12 @@ class SculptScene {
   private renderer: THREE.WebGLRenderer;
   private raycaster: THREE.Raycaster;
   private orbitControls: OrbitControls;
+  showDebug: boolean;
 
   animate: () => void;
   resize: () => void;
 
-  constructor(cameraPos?: THREE.Vector3) {
+  constructor(showDebug = false, cameraPos?: THREE.Vector3) {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
       FOV,
@@ -32,6 +33,7 @@ class SculptScene {
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.setAnimationLoop(this.animateLoop.bind(this));
 
+    this.showDebug = showDebug;
     this.raycaster = new THREE.Raycaster();
     this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
 
@@ -55,7 +57,7 @@ class SculptScene {
   }
 
   private setupScene() {
-    this.add(new THREE.GridHelper(10, 10));
+    if (this.showDebug) this.add(new THREE.GridHelper(10, 10));
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(1, 1, 1);

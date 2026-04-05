@@ -30,7 +30,12 @@ class VoxelGrid {
     this.data = new Float32Array(this.size).fill(1);
 
     const geometry = new THREE.BoxGeometry(this.voxelSize, this.voxelSize, this.voxelSize);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.1
+    });
     this.mesh = new THREE.InstancedMesh(geometry, material, this.size);
     this.showMesh = showMesh;
     this.updateMesh();

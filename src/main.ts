@@ -8,19 +8,21 @@ import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
-import { PinchGesture } from "./gestures/gesture";
+import { MotionGesture, PinchGesture } from "./gestures/gesture";
+import type { HandState } from "./gestures/handState";
 
-const scene = new SculptScene();
+const DEBUG_MODE_ENABLED = false;
+const scene = new SculptScene(DEBUG_MODE_ENABLED);
 
-const mediapipe = await Mediapipe.create(FILTERS.ONEEURO, false);
+const mediapipe = await Mediapipe.create(FILTERS.ONEEURO, DEBUG_MODE_ENABLED, false);
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
 const appContainer = document.getElementById("app-container") as HTMLDivElement;
 const stats = new Stats();
-appContainer.appendChild(stats.dom);
+if (DEBUG_MODE_ENABLED) appContainer.appendChild(stats.dom);
 
-const voxelGrid = new VoxelGrid(48, 3, true);
+const voxelGrid = new VoxelGrid(48, 4, true);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere;
@@ -35,14 +37,13 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.01, 2);
+const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.02, 5);
 const pinchMarker = new THREE.Mesh(
   new THREE.SphereGeometry(0.5),
   new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: false })
 );
 pinchGesture.onUpdate = (gesture, hand, h) => {
-  const state = gesture.state[h];
-  if (!state.duration) {
+  if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
     voxelGrid.applyMaxSDF((x, y, z) => {
       x -= indexPos.x;
@@ -59,18 +60,31 @@ pinchGesture.onStart = (_gesture, _hand, h) => {
 pinchGesture.onEnd = (_gesture, _hand, h) => {
   handsTracker.mesh.setColors(new THREE.Color(0xffffff), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
 };
-pinchGesture.onActive = (gesture, _hand, h) => {
-  const state = gesture.state[h];
+pinchGesture.onActive = (_gesture, hand, _h) => {
   voxelGrid.applyMinSDF((x, y, z) => {
-    x -= state.x;
-    y -= state.y;
-    z -= state.z;
+    const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+    x -= indexPos.x;
+    y -= indexPos.y;
+    z -= indexPos.z;
     const sphere = Math.sqrt(x * x + y * y + z * z) - 0.2;
     return sphere;
   });
 };
 
+const detectLeft = (hand: HandState) => {
+  console.log(hand.landmarks[LM.WRIST].x);
+  return hand.landmarks[LM.WRIST].x < 0.4;
+};
+const detectRight = (hand: HandState) => {
+  return hand.landmarks[LM.WRIST].x > 0.8;
+};
+const swipeGesture = new MotionGesture("swipe", detectLeft, detectRight, 500);
+swipeGesture.onTriggerAB = (_gesture, _hand, _h) => {
+  voxelGrid.setGrid(1);
+};
+
 handsTracker.addGesture(pinchGesture);
+handsTracker.addGesture(swipeGesture);
 
 // scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
