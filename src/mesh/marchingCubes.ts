@@ -3,10 +3,10 @@ import { VoxelGrid } from "../voxel/grid";
 import { lerp } from "../utils/math";
 
 class MarchingCubes {
-  geometry: THREE.BufferGeometry;
-  enableUvs: boolean;
-  enableColors: boolean;
-  maxVertexCount: number;
+  readonly geometry: THREE.BufferGeometry;
+  readonly enableUvs: boolean;
+  readonly enableColors: boolean;
+  readonly maxVertexCount: number;
   isosurface: number;
 
   grid: VoxelGrid;
