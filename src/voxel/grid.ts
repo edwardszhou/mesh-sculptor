@@ -10,6 +10,8 @@ type VoxelChunk = {
   z: number;
   filledCount: number;
   dirty: boolean;
+  readonly size: number;
+  readonly maxVoxels: number;
 };
 class VoxelGrid {
   readonly resolution: number;
@@ -69,7 +71,12 @@ class VoxelGrid {
             y: cy * this.chunkSize,
             z: cz * this.chunkSize,
             filledCount: 0,
-            dirty: false
+            dirty: false,
+            size: this.chunkSize,
+            maxVoxels:
+              Math.min(this.chunkSize, this.resolution - cx * this.chunkSize) *
+              Math.min(this.chunkSize, this.resolution - cy * this.chunkSize) *
+              Math.min(this.chunkSize, this.resolution - cz * this.chunkSize)
           });
         }
       }
@@ -126,6 +133,13 @@ class VoxelGrid {
     if (!chunk.dirty) {
       chunk.dirty = true;
       this.chunksDirty[chunk.idx] = 1;
+    }
+  }
+
+  markChunkNotDirty(chunk: VoxelChunk) {
+    if (chunk.dirty) {
+      chunk.dirty = false;
+      this.chunksDirty[chunk.idx] = 0;
     }
   }
   markAllChunksDirty() {
@@ -248,4 +262,4 @@ class VoxelGrid {
   }
 }
 
-export { VoxelGrid };
+export { VoxelGrid, type VoxelChunk };

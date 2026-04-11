@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { VoxelGrid } from "../voxel/grid";
+import { VoxelGrid, type VoxelChunk } from "../voxel/grid";
 import { lerp } from "../utils/math";
 
 class MarchingCubes {
@@ -23,7 +23,11 @@ class MarchingCubes {
   private tempNor: Float32Array;
   private tempCol: Float32Array;
 
-  constructor(grid: VoxelGrid, enableUvs = false, enableColors = false, maxVertexCount = 300000) {
+  private readonly maxVerticesPerChunk: number;
+  private chunkVertexOffset: Int32Array;
+  private chunkVertexCount: Int32Array;
+
+  constructor(grid: VoxelGrid, enableUvs = false, enableColors = false) {
     this.geometry = new THREE.BufferGeometry();
 
     // temp buffers used in polygonize
@@ -33,32 +37,40 @@ class MarchingCubes {
 
     this.enableUvs = enableUvs;
     this.enableColors = enableColors;
-    this.maxVertexCount = maxVertexCount;
+
     this.isosurface = 0;
 
     this.grid = grid;
     this.normalCache = new Float32Array(grid.size * 3);
     this.colorCache = new Float32Array(grid.size * 3);
 
+    // Max vertices per chunk = max 15 per voxel * # of voxels in chunk (size^3)
+    this.maxVerticesPerChunk = grid.chunkSize ** 3 * 15;
+    this.chunkVertexCount = new Int32Array(grid.chunks.length);
+    this.chunkVertexOffset = new Int32Array(grid.chunks.length).map(
+      (_, i) => i * this.maxVerticesPerChunk
+    );
+    this.maxVertexCount = grid.chunks.length * this.maxVerticesPerChunk;
+
     this.vertexCount = 0;
-    this.positionArray = new Float32Array(maxVertexCount * 3);
+    this.positionArray = new Float32Array(this.maxVertexCount * 3);
     const positionAttribute = new THREE.BufferAttribute(this.positionArray, 3);
     positionAttribute.setUsage(THREE.DynamicDrawUsage);
     this.geometry.setAttribute("position", positionAttribute);
 
-    this.normalArray = new Float32Array(maxVertexCount * 3);
+    this.normalArray = new Float32Array(this.maxVertexCount * 3);
     const normalAttribute = new THREE.BufferAttribute(this.normalArray, 3);
     normalAttribute.setUsage(THREE.DynamicDrawUsage);
     this.geometry.setAttribute("normal", normalAttribute);
 
-    this.uvArray = new Float32Array(maxVertexCount * 2);
+    this.uvArray = new Float32Array(this.maxVertexCount * 2);
     if (this.enableUvs) {
       const uvAttribute = new THREE.BufferAttribute(this.uvArray, 2);
       uvAttribute.setUsage(THREE.DynamicDrawUsage);
       this.geometry.setAttribute("uv", uvAttribute);
     }
 
-    this.colorArray = new Float32Array(maxVertexCount * 3);
+    this.colorArray = new Float32Array(this.maxVertexCount * 3);
     if (this.enableColors) {
       const colorAttribute = new THREE.BufferAttribute(this.colorArray, 3);
       colorAttribute.setUsage(THREE.DynamicDrawUsage);
@@ -311,6 +323,26 @@ class MarchingCubes {
     this.vertexCount += 3;
   }
 
+  private clearChunkNormalCache(chunk: VoxelChunk) {
+    const x0 = Math.max(0, chunk.x - 1);
+    const y0 = Math.max(0, chunk.y - 1);
+    const z0 = Math.max(0, chunk.z - 1);
+    const x1 = Math.min(this.grid.resolution - 1, chunk.x + chunk.size);
+    const y1 = Math.min(this.grid.resolution - 1, chunk.y + chunk.size);
+    const z1 = Math.min(this.grid.resolution - 1, chunk.z + chunk.size);
+
+    for (let z = z0; z <= z1; z++) {
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const n = this.grid.getIdx(x, y, z) * 3;
+          this.normalCache[n] = 0;
+          this.normalCache[n + 1] = 0;
+          this.normalCache[n + 2] = 0;
+        }
+      }
+    }
+  }
+
   reset() {
     this.grid.setGrid(1);
     this.normalCache.fill(0);
@@ -318,9 +350,8 @@ class MarchingCubes {
   }
 
   triangulate() {
-    const start = performance.now();
-
     this.vertexCount = 0;
+    this.normalCache.fill(0);
 
     // Avoid triangulating edges b/c degenerate normals
     const resolution = this.grid.resolution - 2;
@@ -344,9 +375,67 @@ class MarchingCubes {
 
     if (this.vertexCount > this.maxVertexCount)
       console.log("Marching cubes max vertex count exceeded.");
+  }
 
-    const end = performance.now();
-    // console.log("Marching Cubes full triangulation: ", end - start);
+  triangulateDirty() {
+    let anyDirty = false;
+    const positionAttribute = this.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const normalAttribute = this.geometry.getAttribute("normal") as THREE.BufferAttribute;
+
+    for (const chunk of this.grid.chunks) {
+      if (!chunk.dirty) continue;
+      anyDirty = true;
+
+      this.clearChunkNormalCache(chunk);
+      const chunkIdx = chunk.idx;
+      const chunkStart = this.chunkVertexOffset[chunkIdx];
+
+      // Empty or full chunks have no surface
+      if (chunk.filledCount == 0 || chunk.filledCount >= chunk.maxVoxels) {
+        this.chunkVertexCount[chunkIdx] = 0;
+        this.grid.markChunkNotDirty(chunk);
+        continue;
+      }
+
+      // Triangulate chunk, starting from offset
+      this.vertexCount = chunkStart;
+
+      // Include adjacent chunk corners
+      const x0 = Math.max(1, chunk.x);
+      const y0 = Math.max(1, chunk.y);
+      const z0 = Math.max(1, chunk.z);
+      const x1 = Math.min(this.grid.resolution - 2, chunk.x + chunk.size);
+      const y1 = Math.min(this.grid.resolution - 2, chunk.y + chunk.size);
+      const z1 = Math.min(this.grid.resolution - 2, chunk.z + chunk.size);
+
+      for (let z = z0; z <= z1; z++) {
+        const zOffset = this.grid.dz * z;
+        for (let y = y0; y <= y1; y++) {
+          const yzOffset = zOffset + this.grid.dy * y;
+          for (let x = x0; x <= x1; x++) {
+            const xyzOffset = yzOffset + this.grid.dx * x;
+            this.polygonize(x, y, z, xyzOffset);
+          }
+        }
+      }
+
+      this.chunkVertexCount[chunkIdx] = this.vertexCount - chunkStart;
+      this.grid.markChunkNotDirty(chunk);
+
+      // Mark region of VBO to update
+      const bufferStart = chunkStart * 3;
+      const bufferCount = this.maxVerticesPerChunk * 3;
+      positionAttribute.addUpdateRange(bufferStart, bufferCount);
+      normalAttribute.addUpdateRange(bufferStart, bufferCount);
+    }
+
+    if (anyDirty) {
+      this.geometry.setDrawRange(0, this.maxVertexCount);
+      this.geometry.getAttribute("position").needsUpdate = true;
+      this.geometry.getAttribute("normal").needsUpdate = true;
+      if (this.enableUvs) this.geometry.getAttribute("uv").needsUpdate = true;
+      if (this.enableColors) this.geometry.getAttribute("color").needsUpdate = true;
+    }
   }
 }
 
