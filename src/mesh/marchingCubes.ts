@@ -7,7 +7,6 @@ class MarchingCubes {
   readonly enableUvs: boolean;
   readonly enableColors: boolean;
   readonly maxVertexCount: number;
-  isosurface: number;
 
   grid: VoxelGrid;
   private normalCache: Float32Array;
@@ -37,8 +36,6 @@ class MarchingCubes {
 
     this.enableUvs = enableUvs;
     this.enableColors = enableColors;
-
-    this.isosurface = 0;
 
     this.grid = grid;
     this.normalCache = new Float32Array(grid.size * 3);
@@ -97,7 +94,7 @@ class MarchingCubes {
       [0, 0, 1]
     ][axis];
 
-    const mu = Math.abs(aVal - bVal) < 1e-5 ? 0.5 : (this.isosurface - aVal) / (bVal - aVal);
+    const mu = Math.abs(aVal - bVal) < 1e-5 ? 0.5 : (this.grid.isosurface - aVal) / (bVal - aVal);
     this.tempPos[tempBufferOffset + 0] = x + mu * axisToInterpolate[0];
     this.tempPos[tempBufferOffset + 1] = y + mu * axisToInterpolate[1];
     this.tempPos[tempBufferOffset + 2] = z + mu * axisToInterpolate[2];
@@ -157,14 +154,14 @@ class MarchingCubes {
       field7 = grid.data[i7];
 
     // cubeIdx is an 8 bit index, one per vertex
-    if (field0 < this.isosurface) cubeIdx |= 0b00000001;
-    if (field1 < this.isosurface) cubeIdx |= 0b00000010;
-    if (field2 < this.isosurface) cubeIdx |= 0b00001000;
-    if (field3 < this.isosurface) cubeIdx |= 0b00000100;
-    if (field4 < this.isosurface) cubeIdx |= 0b00010000;
-    if (field5 < this.isosurface) cubeIdx |= 0b00100000;
-    if (field6 < this.isosurface) cubeIdx |= 0b10000000;
-    if (field7 < this.isosurface) cubeIdx |= 0b01000000;
+    if (field0 < grid.isosurface) cubeIdx |= 0b00000001;
+    if (field1 < grid.isosurface) cubeIdx |= 0b00000010;
+    if (field2 < grid.isosurface) cubeIdx |= 0b00001000;
+    if (field3 < grid.isosurface) cubeIdx |= 0b00000100;
+    if (field4 < grid.isosurface) cubeIdx |= 0b00010000;
+    if (field5 < grid.isosurface) cubeIdx |= 0b00100000;
+    if (field6 < grid.isosurface) cubeIdx |= 0b10000000;
+    if (field7 < grid.isosurface) cubeIdx |= 0b01000000;
 
     // Map 8 bit cube index to 12 bit edge index (marking which edges cross the isosurface)
     const crossedEdges = edgeTable[cubeIdx];
