@@ -340,6 +340,16 @@ class MarchingCubes {
     }
   }
 
+  private clearChunk(chunk: VoxelChunk) {
+    const chunkIdx = chunk.idx;
+    this.clearChunkNormalCache(chunk);
+
+    const bufferStart = this.chunkVertexOffset[chunkIdx] * 3;
+    const bufferCount = this.maxVerticesPerChunk * 3;
+    this.positionArray.fill(0, bufferStart, bufferStart + bufferCount);
+    this.normalArray.fill(0, bufferStart, bufferStart + bufferCount);
+  }
+
   reset() {
     this.grid.setGrid(1);
     this.normalCache.fill(0);
@@ -381,11 +391,10 @@ class MarchingCubes {
 
     for (const chunk of this.grid.chunks) {
       if (!chunk.dirty) continue;
-      anyDirty = true;
 
-      this.clearChunkNormalCache(chunk);
+      anyDirty = true;
+      this.clearChunk(chunk);
       const chunkIdx = chunk.idx;
-      const chunkStart = this.chunkVertexOffset[chunkIdx];
 
       // Empty or full chunks have no surface
       if (chunk.filledCount == 0 || chunk.filledCount >= chunk.maxVoxels) {
@@ -395,6 +404,7 @@ class MarchingCubes {
       }
 
       // Triangulate chunk, starting from offset
+      const chunkStart = this.chunkVertexOffset[chunkIdx];
       this.vertexCount = chunkStart;
 
       // Include adjacent chunk corners
@@ -430,8 +440,6 @@ class MarchingCubes {
       this.geometry.setDrawRange(0, this.maxVertexCount);
       this.geometry.getAttribute("position").needsUpdate = true;
       this.geometry.getAttribute("normal").needsUpdate = true;
-      if (this.enableUvs) this.geometry.getAttribute("uv").needsUpdate = true;
-      if (this.enableColors) this.geometry.getAttribute("color").needsUpdate = true;
     }
   }
 }

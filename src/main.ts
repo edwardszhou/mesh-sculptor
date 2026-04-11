@@ -10,8 +10,9 @@ import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
 import { MotionGesture, PinchGesture } from "./gestures/gesture";
 import type { HandState } from "./gestures/handState";
+import { logPerformance } from "./utils/utils";
 
-const DEBUG_MODE_ENABLED = false;
+const DEBUG_MODE_ENABLED = true;
 const scene = new SculptScene(DEBUG_MODE_ENABLED);
 
 const mediapipe = await Mediapipe.create(FILTERS.ONEEURO, DEBUG_MODE_ENABLED, false);
@@ -29,7 +30,7 @@ voxelGrid.setSDF((x, y, z) => {
 });
 
 const marchingCubes = new MarchingCubes(voxelGrid);
-marchingCubes.triangulate();
+marchingCubes.triangulateDirty();
 const marchedMesh = new THREE.Mesh(
   marchingCubes.geometry,
   new THREE.MeshStandardMaterial({ color: 0xc8b49a, wireframe: false })
@@ -98,6 +99,10 @@ scene.resize = () => {
 scene.animate = () => {
   mediapipe.predict();
   handsTracker.update(mediapipe.results, scene);
-  marchingCubes.triangulate();
+
+  logPerformance(() => {
+    marchingCubes.triangulateDirty();
+  }, "Time for global triangulation: ");
+
   stats.update();
 };
