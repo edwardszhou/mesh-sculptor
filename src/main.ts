@@ -12,18 +12,29 @@ import { MotionGesture, PinchGesture } from "./gestures/gesture";
 import type { HandState } from "./gestures/handState";
 import { logPerformance } from "./utils/utils";
 
-const DEBUG_MODE_ENABLED = true;
-const scene = new SculptScene(DEBUG_MODE_ENABLED);
+const appConfig = {
+  WORLD_GRID: false,
+  VOXEL_GRID: false,
+  MEDIAPIPE_LM: false,
+  MEDIAPIPE_DUMMY: false,
+  STATS: true
+};
 
-const mediapipe = await Mediapipe.create(FILTERS.ONEEURO, DEBUG_MODE_ENABLED, false);
+const scene = new SculptScene(appConfig.WORLD_GRID);
+
+const mediapipe = await Mediapipe.create(
+  FILTERS.ONEEURO,
+  appConfig.MEDIAPIPE_LM,
+  appConfig.MEDIAPIPE_DUMMY
+);
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
 const appContainer = document.getElementById("app-container") as HTMLDivElement;
 const stats = new Stats();
-if (DEBUG_MODE_ENABLED) appContainer.appendChild(stats.dom);
+if (appConfig.STATS) appContainer.appendChild(stats.dom);
 
-const voxelGrid = new VoxelGrid(48, 4, 8, false);
+const voxelGrid = new VoxelGrid(48, 4, 8, appConfig.VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere;
@@ -39,20 +50,9 @@ const marchedMesh = new THREE.Mesh(
 const handsTracker = new HandsTracker(true);
 
 const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.02, 5);
-const pinchMarker = new THREE.Mesh(
-  new THREE.SphereGeometry(0.5),
-  new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: false })
-);
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    // voxelGrid.applyMaxSDF((x, y, z) => {
-    //   x -= indexPos.x;
-    //   y -= indexPos.y;
-    //   z -= indexPos.z;
-    //   const sphere = -Math.sqrt(x * x + y * y + z * z) + 0.2;
-    //   return sphere;
-    // });
     voxelGrid.carve(indexPos.x, indexPos.y, indexPos.z, 0.2, 1);
   }
 };
@@ -64,13 +64,6 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  // voxelGrid.applyMinSDF((x, y, z) => {
-  //   x -= indexPos.x;
-  //   y -= indexPos.y;
-  //   z -= indexPos.z;
-  //   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.2;
-  //   return sphere;
-  // });
   voxelGrid.stuff(indexPos.x, indexPos.y, indexPos.z, 0.2, 1);
 };
 
@@ -93,7 +86,6 @@ scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
 scene.add(handsTracker.mesh.bones);
 scene.add(handsTracker.mesh.points);
-// scene.add(pinchMarker);
 
 scene.resize = () => {
   mediapipe.resize();
