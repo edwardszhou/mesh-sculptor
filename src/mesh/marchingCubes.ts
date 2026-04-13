@@ -18,6 +18,13 @@ class MarchingCubes {
   private colorArray: Float32Array;
   private vertexCount: number;
 
+  private readonly edgeAxisOffsets: [number, number, number];
+  private readonly edgeAxes: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number]
+  ];
+
   private tempPos: Float32Array;
   private tempNor: Float32Array;
   private tempCol: Float32Array;
@@ -40,6 +47,14 @@ class MarchingCubes {
     this.grid = grid;
     this.normalCache = new Float32Array(grid.size * 3);
     this.colorCache = new Float32Array(grid.size * 3);
+
+    // Constants for edge calculation
+    this.edgeAxisOffsets = [3 * this.grid.dx, 3 * this.grid.dy, 3 * this.grid.dz];
+    this.edgeAxes = [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1]
+    ];
 
     // Max vertices per chunk = max 15 per voxel * # of voxels in chunk (size^3)
     this.maxVerticesPerChunk = grid.chunkSize ** 3 * 15;
@@ -86,13 +101,9 @@ class MarchingCubes {
     bVal: number
   ) {
     const aOffset = vIdx * 3;
-    const bOffset = aOffset + [3 * this.grid.dx, 3 * this.grid.dy, 3 * this.grid.dz][axis];
+    const bOffset = aOffset + this.edgeAxisOffsets[axis];
     const tempBufferOffset = eIdx * 3;
-    const axisToInterpolate = [
-      [1, 0, 0],
-      [0, 1, 0],
-      [0, 0, 1]
-    ][axis];
+    const axisToInterpolate = this.edgeAxes[axis];
 
     const mu = Math.abs(aVal - bVal) < 1e-5 ? 0.5 : (this.grid.isosurface - aVal) / (bVal - aVal);
     this.tempPos[tempBufferOffset + 0] = x + mu * axisToInterpolate[0];
@@ -395,6 +406,13 @@ class MarchingCubes {
       anyDirty = true;
       this.clearChunk(chunk);
       const chunkIdx = chunk.idx;
+      const chunkStart = this.chunkVertexOffset[chunkIdx];
+
+      // Mark region of VBO to update
+      const bufferStart = chunkStart * 3;
+      const bufferCount = this.maxVerticesPerChunk * 3;
+      positionAttribute.addUpdateRange(bufferStart, bufferCount);
+      normalAttribute.addUpdateRange(bufferStart, bufferCount);
 
       // Empty or full chunks have no surface
       if (chunk.filledCount == 0 || chunk.filledCount >= chunk.maxVoxels) {
@@ -404,16 +422,15 @@ class MarchingCubes {
       }
 
       // Triangulate chunk, starting from offset
-      const chunkStart = this.chunkVertexOffset[chunkIdx];
       this.vertexCount = chunkStart;
 
-      // Include adjacent chunk corners
+      // BUG: If including adjacent cell corners, duplicate stale faces are created. If not, holes appear (current)
       const x0 = Math.max(1, chunk.x);
       const y0 = Math.max(1, chunk.y);
       const z0 = Math.max(1, chunk.z);
-      const x1 = Math.min(this.grid.resolution - 2, chunk.x + chunk.size);
-      const y1 = Math.min(this.grid.resolution - 2, chunk.y + chunk.size);
-      const z1 = Math.min(this.grid.resolution - 2, chunk.z + chunk.size);
+      const x1 = Math.min(this.grid.resolution - 2, chunk.x + chunk.size - 1);
+      const y1 = Math.min(this.grid.resolution - 2, chunk.y + chunk.size - 1);
+      const z1 = Math.min(this.grid.resolution - 2, chunk.z + chunk.size - 1);
 
       for (let z = z0; z <= z1; z++) {
         const zOffset = this.grid.dz * z;
@@ -428,18 +445,12 @@ class MarchingCubes {
 
       this.chunkVertexCount[chunkIdx] = this.vertexCount - chunkStart;
       this.grid.markChunkNotDirty(chunk);
-
-      // Mark region of VBO to update
-      const bufferStart = chunkStart * 3;
-      const bufferCount = this.maxVerticesPerChunk * 3;
-      positionAttribute.addUpdateRange(bufferStart, bufferCount);
-      normalAttribute.addUpdateRange(bufferStart, bufferCount);
     }
 
     if (anyDirty) {
       this.geometry.setDrawRange(0, this.maxVertexCount);
-      this.geometry.getAttribute("position").needsUpdate = true;
-      this.geometry.getAttribute("normal").needsUpdate = true;
+      positionAttribute.needsUpdate = true;
+      normalAttribute.needsUpdate = true;
     }
   }
 }

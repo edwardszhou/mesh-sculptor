@@ -46,13 +46,14 @@ const pinchMarker = new THREE.Mesh(
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    voxelGrid.applyMaxSDF((x, y, z) => {
-      x -= indexPos.x;
-      y -= indexPos.y;
-      z -= indexPos.z;
-      const sphere = -Math.sqrt(x * x + y * y + z * z) + 0.2;
-      return sphere;
-    });
+    // voxelGrid.applyMaxSDF((x, y, z) => {
+    //   x -= indexPos.x;
+    //   y -= indexPos.y;
+    //   z -= indexPos.z;
+    //   const sphere = -Math.sqrt(x * x + y * y + z * z) + 0.2;
+    //   return sphere;
+    // });
+    voxelGrid.carve(indexPos.x, indexPos.y, indexPos.z, 0.2, 1);
   }
 };
 pinchGesture.onStart = (_gesture, _hand, h) => {
@@ -62,14 +63,15 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
   handsTracker.mesh.setColors(new THREE.Color(0xffffff), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
-  voxelGrid.applyMinSDF((x, y, z) => {
-    const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    x -= indexPos.x;
-    y -= indexPos.y;
-    z -= indexPos.z;
-    const sphere = Math.sqrt(x * x + y * y + z * z) - 0.2;
-    return sphere;
-  });
+  const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+  // voxelGrid.applyMinSDF((x, y, z) => {
+  //   x -= indexPos.x;
+  //   y -= indexPos.y;
+  //   z -= indexPos.z;
+  //   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.2;
+  //   return sphere;
+  // });
+  voxelGrid.stuff(indexPos.x, indexPos.y, indexPos.z, 0.2, 1);
 };
 
 const detectLeft = (hand: HandState) => {

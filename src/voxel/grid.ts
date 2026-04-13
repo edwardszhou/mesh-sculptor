@@ -161,6 +161,10 @@ class VoxelGrid {
     const valInside = val < this.isosurface;
     chunk.filledCount += !prevInside && valInside ? 1 : prevInside && !valInside ? -1 : 0;
     this.markChunkDirty(chunk);
+
+    if (i % this.chunkSize === 0 && i > 0) this.markChunkDirty(this.getChunk(i - 1, j, k));
+    if (j % this.chunkSize === 0 && j > 0) this.markChunkDirty(this.getChunk(i, j - 1, k));
+    if (k % this.chunkSize === 0 && k > 0) this.markChunkDirty(this.getChunk(i, j, k - 1));
   }
 
   setSDF(sdf: SDF) {
