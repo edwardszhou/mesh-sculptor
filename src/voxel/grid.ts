@@ -54,7 +54,7 @@ class VoxelGrid {
     this.halfSize = worldSize / 2;
     this.voxelSize = worldSize / resolution;
 
-    // Chunks for partial surface extration
+    // Chunks for partial surface extraction
     this.chunkSize = chunkSize;
     this.chunkResolution = Math.ceil(this.resolution / this.chunkSize);
     this.cdx = 1;
@@ -96,6 +96,7 @@ class VoxelGrid {
     });
     this.mesh = new THREE.InstancedMesh(geometry, material, this.size);
     this.showMesh = showMesh;
+    this.mesh.visible = showMesh;
     this.updateMesh();
   }
 
@@ -162,9 +163,19 @@ class VoxelGrid {
     chunk.filledCount += !prevInside && valInside ? 1 : prevInside && !valInside ? -1 : 0;
     this.markChunkDirty(chunk);
 
-    if (i % this.chunkSize === 0 && i > 0) this.markChunkDirty(this.getChunk(i - 1, j, k));
-    if (j % this.chunkSize === 0 && j > 0) this.markChunkDirty(this.getChunk(i, j - 1, k));
-    if (k % this.chunkSize === 0 && k > 0) this.markChunkDirty(this.getChunk(i, j, k - 1));
+    // const lx = i % this.chunkSize;
+    // const ly = j % this.chunkSize;
+    // const lz = k % this.chunkSize;
+
+    // if (lx === this.chunkSize - 1 && i + 1 < this.resolution)
+    //   this.markChunkDirty(this.getChunk(i + 1, j, k));
+    // if (ly === this.chunkSize - 1 && j + 1 < this.resolution)
+    //   this.markChunkDirty(this.getChunk(i, j + 1, k));
+    // if (lz === this.chunkSize - 1 && k + 1 < this.resolution)
+    //   this.markChunkDirty(this.getChunk(i, j, k + 1));
+    // if (lx === 0 && i - 1 >= 0) this.markChunkDirty(this.getChunk(i - 1, j, k));
+    // if (ly === 0 && j - 1 >= 0) this.markChunkDirty(this.getChunk(i, j - 1, k));
+    // if (lz === 0 && k - 1 >= 0) this.markChunkDirty(this.getChunk(i, j, k - 1));
   }
 
   setSDF(sdf: SDF) {
@@ -228,6 +239,7 @@ class VoxelGrid {
 
   setIsosurface(val: number) {
     this.isosurface = val;
+    this.markAllChunksDirty();
     this.updateChunkFilledCounts();
   }
 
@@ -241,11 +253,11 @@ class VoxelGrid {
     const [bi, bj, bk] = this.worldToIdx(wx, wy, wz);
     const r = Math.ceil(radius / this.voxelSize);
 
-    const i0 = Math.max(0, bi - r);
+    const i0 = Math.max(0, bi - r - 1);
     const i1 = Math.min(this.resolution - 1, bi + r);
-    const j0 = Math.max(0, bj - r);
+    const j0 = Math.max(0, bj - r - 1);
     const j1 = Math.min(this.resolution - 1, bj + r);
-    const k0 = Math.max(0, bk - r);
+    const k0 = Math.max(0, bk - r - 1);
     const k1 = Math.min(this.resolution - 1, bk + r);
 
     for (let k = k0; k <= k1; k++) {
@@ -269,6 +281,17 @@ class VoxelGrid {
         }
       }
     }
+    const cx0 = Math.floor(i0 / this.chunkSize);
+    const cx1 = Math.floor(i1 / this.chunkSize);
+    const cy0 = Math.floor(j0 / this.chunkSize);
+    const cy1 = Math.floor(j1 / this.chunkSize);
+    const cz0 = Math.floor(k0 / this.chunkSize);
+    const cz1 = Math.floor(k1 / this.chunkSize);
+
+    for (let cz = cz0; cz <= cz1; cz++)
+      for (let cy = cy0; cy <= cy1; cy++)
+        for (let cx = cx0; cx <= cx1; cx++)
+          this.markChunkDirty(this.chunks[cx * this.cdx + cy * this.cdy + cz * this.cdz]);
   }
 
   carve(x: number, y: number, z: number, radius: number, strength = 0.1) {

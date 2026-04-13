@@ -424,13 +424,13 @@ class MarchingCubes {
       // Triangulate chunk, starting from offset
       this.vertexCount = chunkStart;
 
-      // BUG: If including adjacent cell corners, duplicate stale faces are created. If not, holes appear (current)
+      // Include adjacent cell corners, so that there are no holes
       const x0 = Math.max(1, chunk.x);
       const y0 = Math.max(1, chunk.y);
       const z0 = Math.max(1, chunk.z);
-      const x1 = Math.min(this.grid.resolution - 2, chunk.x + chunk.size - 1);
-      const y1 = Math.min(this.grid.resolution - 2, chunk.y + chunk.size - 1);
-      const z1 = Math.min(this.grid.resolution - 2, chunk.z + chunk.size - 1);
+      const x1 = Math.min(this.grid.resolution - 2, chunk.x + chunk.size);
+      const y1 = Math.min(this.grid.resolution - 2, chunk.y + chunk.size);
+      const z1 = Math.min(this.grid.resolution - 2, chunk.z + chunk.size);
 
       for (let z = z0; z <= z1; z++) {
         const zOffset = this.grid.dz * z;

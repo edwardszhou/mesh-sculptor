@@ -23,7 +23,7 @@ const appContainer = document.getElementById("app-container") as HTMLDivElement;
 const stats = new Stats();
 if (DEBUG_MODE_ENABLED) appContainer.appendChild(stats.dom);
 
-const voxelGrid = new VoxelGrid(48, 4, 8, true);
+const voxelGrid = new VoxelGrid(48, 4, 8, false);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere;
@@ -89,7 +89,7 @@ swipeGesture.onTriggerAB = (_gesture, _hand, _h) => {
 handsTracker.addGesture(pinchGesture);
 handsTracker.addGesture(swipeGesture);
 
-// scene.add(voxelGrid.mesh);
+scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
 scene.add(handsTracker.mesh.bones);
 scene.add(handsTracker.mesh.points);
