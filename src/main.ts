@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import Stats from "three/addons/libs/stats.module.js";
 import { Mediapipe } from "./gestures/mediapipe";
 import { Home } from "./ui/home";
 import { VoxelGrid } from "./voxel/grid";
@@ -10,31 +9,28 @@ import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
 import { MotionGesture, PinchGesture } from "./gestures/gesture";
 import type { HandState } from "./gestures/handState";
-import { logPerformance } from "./utils/utils";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
   SHOW_VOXEL_GRID: false,
+  SHOW_SCENE_STATS: true,
   SHOW_MEDIAPIPE_CONNECTIONS: true,
-  SHOW_STATS: true,
+  SHOW_MEDIAPIPE_STATS: true,
   SHOW_HAND_MESH: true,
   MEDIAPIPE_FILTER: FILTERS.ONEEURO,
   MEDIAPIPE_DUMMY: false
 };
 
-const scene = new SculptScene(appConfig.SHOW_WORLD_GRID);
+const scene = new SculptScene(appConfig.SHOW_WORLD_GRID, appConfig.SHOW_SCENE_STATS);
 
 const mediapipe = await Mediapipe.create(
   appConfig.MEDIAPIPE_FILTER,
   appConfig.SHOW_MEDIAPIPE_CONNECTIONS,
+  appConfig.SHOW_MEDIAPIPE_STATS,
   appConfig.MEDIAPIPE_DUMMY
 );
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
-
-const appContainer = document.getElementById("app-container") as HTMLDivElement;
-const stats = new Stats();
-if (appConfig.SHOW_STATS) appContainer.appendChild(stats.dom);
 
 const voxelGrid = new VoxelGrid(48, 4, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
@@ -100,5 +96,8 @@ scene.animate = () => {
   marchingCubes.triangulateDirty();
   // }, "Time for global triangulation: ");
 
-  stats.update();
+  // const buf = new Uint8Array(4);
+  // scene.renderer
+  //   .getContext()
+  //   .readPixels(0, 0, 1, 1, WebGLRenderingContext.RGBA, WebGLRenderingContext.UNSIGNED_BYTE, buf);
 };

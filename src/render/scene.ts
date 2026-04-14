@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import Stats from "three/addons/libs/stats.module.js";
 
 const FOV = 75;
 const NEAR = 0.1;
@@ -13,12 +14,14 @@ class SculptScene {
   private renderer: THREE.WebGLRenderer;
   private raycaster: THREE.Raycaster;
   private orbitControls: OrbitControls;
+  private stats: Stats;
   showDebug: boolean;
+  showStats: boolean;
 
   animate: () => void;
   resize: () => void;
 
-  constructor(showDebug = false, cameraPos?: THREE.Vector3) {
+  constructor(showDebug = false, showStats = false, cameraPos?: THREE.Vector3) {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
       FOV,
@@ -33,6 +36,12 @@ class SculptScene {
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.setAnimationLoop(this.animateLoop.bind(this));
 
+    this.stats = new Stats();
+    if (showStats) {
+      const container = document.getElementById("app-container") as HTMLDivElement;
+      container.appendChild(this.stats.dom);
+    }
+    this.showStats = showStats;
     this.showDebug = showDebug;
     this.raycaster = new THREE.Raycaster();
     this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -70,6 +79,7 @@ class SculptScene {
     this.handleResize();
     this.animate();
     this.renderer.render(this.scene, this.camera);
+    this.stats.update();
   }
 
   private handleResize() {

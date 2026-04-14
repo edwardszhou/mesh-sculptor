@@ -14,6 +14,7 @@ import {
   type Filter
 } from "../utils/filter";
 import { NUM_LMS } from "./landmarks";
+import Stats from "three/addons/libs/stats.module.js";
 
 export type Handedness = "left" | "right";
 
@@ -60,12 +61,20 @@ class Mediapipe {
   readonly filterType: Filter;
   private filters: Hands<FilterSet[]> | null;
 
+  private stats: Stats;
+
   results: HandsResult;
 
   isReady: boolean;
+  showStats: boolean;
   showDebug: boolean;
 
-  private constructor(filter: Filter, showDebug: boolean, landmarker: HandLandmarker) {
+  private constructor(
+    filter: Filter,
+    showDebug: boolean,
+    showStats: boolean,
+    landmarker: HandLandmarker
+  ) {
     this.canvas = document.getElementById("mediapipe-canvas") as HTMLCanvasElement;
     this.video = document.getElementById("mediapipe-video") as HTMLVideoElement;
     this.ctx = this.canvas.getContext("2d")!;
@@ -86,11 +95,20 @@ class Mediapipe {
 
     this.isReady = false;
     this.showDebug = showDebug;
+    this.showStats = showStats;
+
+    this.stats = new Stats();
+    if (showStats) {
+      const container = document.getElementById("app-container") as HTMLDivElement;
+      container.appendChild(this.stats.dom);
+      this.stats.dom.style.right = "0px";
+      this.stats.dom.style.left = "";
+    }
   }
 
-  static async create(filter: Filter, showDebug: boolean = false, dummy: boolean = false) {
+  static async create(filter: Filter, showDebug = false, showStats = false, dummy = false) {
     if (dummy) {
-      return new Mediapipe(filter, showDebug, { dummy: true } as any);
+      return new Mediapipe(filter, showDebug, showStats, { dummy: true } as any);
     }
 
     const vision = await FilesetResolver.forVisionTasks("/wasm");
@@ -102,7 +120,7 @@ class Mediapipe {
       runningMode: "VIDEO",
       numHands: 2
     });
-    return new Mediapipe(filter, showDebug, landmarker);
+    return new Mediapipe(filter, showDebug, showStats, landmarker);
   }
 
   async init() {
@@ -195,6 +213,7 @@ class Mediapipe {
 
       this.results[handedness] = { landmarks, worldLandmarks };
     }
+    this.stats.update();
   }
 
   private transformLandmark(lm: Landmark, i: number, h: Handedness, timestamp: number): Landmark {
