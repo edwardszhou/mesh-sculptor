@@ -13,18 +13,20 @@ import type { HandState } from "./gestures/handState";
 import { logPerformance } from "./utils/utils";
 
 const appConfig = {
-  WORLD_GRID: false,
-  VOXEL_GRID: false,
-  MEDIAPIPE_LM: false,
-  MEDIAPIPE_DUMMY: false,
-  STATS: true
+  SHOW_WORLD_GRID: false,
+  SHOW_VOXEL_GRID: false,
+  SHOW_MEDIAPIPE_CONNECTIONS: true,
+  SHOW_STATS: true,
+  SHOW_HAND_MESH: true,
+  MEDIAPIPE_FILTER: FILTERS.ONEEURO,
+  MEDIAPIPE_DUMMY: false
 };
 
-const scene = new SculptScene(appConfig.WORLD_GRID);
+const scene = new SculptScene(appConfig.SHOW_WORLD_GRID);
 
 const mediapipe = await Mediapipe.create(
-  FILTERS.ONEEURO,
-  appConfig.MEDIAPIPE_LM,
+  appConfig.MEDIAPIPE_FILTER,
+  appConfig.SHOW_MEDIAPIPE_CONNECTIONS,
   appConfig.MEDIAPIPE_DUMMY
 );
 const homeUI = new Home();
@@ -32,9 +34,9 @@ homeUI.tryStart = async () => await mediapipe.init();
 
 const appContainer = document.getElementById("app-container") as HTMLDivElement;
 const stats = new Stats();
-if (appConfig.STATS) appContainer.appendChild(stats.dom);
+if (appConfig.SHOW_STATS) appContainer.appendChild(stats.dom);
 
-const voxelGrid = new VoxelGrid(48, 4, 8, appConfig.VOXEL_GRID);
+const voxelGrid = new VoxelGrid(48, 4, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere;
@@ -68,7 +70,6 @@ pinchGesture.onActive = (_gesture, hand, _h) => {
 };
 
 const detectLeft = (hand: HandState) => {
-  console.log(hand.landmarks[LM.WRIST].x);
   return hand.landmarks[LM.WRIST].x < 0.4;
 };
 const detectRight = (hand: HandState) => {
@@ -91,12 +92,13 @@ scene.resize = () => {
   mediapipe.resize();
 };
 scene.animate = () => {
-  mediapipe.predict();
+  // mediapipe.predict();
+  mediapipe.workerPredict();
   handsTracker.update(mediapipe.results, scene);
 
-  logPerformance(() => {
-    marchingCubes.triangulateDirty();
-  }, "Time for global triangulation: ");
+  // logPerformance(() => {
+  marchingCubes.triangulateDirty();
+  // }, "Time for global triangulation: ");
 
   stats.update();
 };

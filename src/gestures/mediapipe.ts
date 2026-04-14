@@ -2,7 +2,8 @@ import {
   HandLandmarker,
   DrawingUtils,
   type HandLandmarkerResult,
-  type Landmark
+  type Landmark,
+  FilesetResolver
 } from "@mediapipe/tasks-vision";
 import {
   FILTERS,
@@ -53,8 +54,11 @@ class Mediapipe {
   private drawUtils: DrawingUtils;
   private landmarker: HandLandmarker;
 
-  filterType: Filter;
-  filters: Hands<FilterSet[]> | null;
+  private worker: Worker;
+  private workerIsProcessing: boolean;
+
+  readonly filterType: Filter;
+  private filters: Hands<FilterSet[]> | null;
 
   results: HandsResult;
 
@@ -74,6 +78,12 @@ class Mediapipe {
     this.filters = { left: [], right: [] };
     this.initFilters();
 
+    this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
+      type: "module"
+    });
+    this.workerIsProcessing = false;
+    this.initWorker();
+
     this.isReady = false;
     this.showDebug = showDebug;
   }
@@ -83,19 +93,10 @@ class Mediapipe {
       return new Mediapipe(filter, showDebug, { dummy: true } as any);
     }
 
-    const vision = {
-      wasmLoaderPath: new URL(
-        "/node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.js",
-        import.meta.url
-      ).href,
-      wasmBinaryPath: new URL(
-        "/node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm",
-        import.meta.url
-      ).href
-    };
+    const vision = await FilesetResolver.forVisionTasks("/wasm");
     const landmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath: `/public/hand_landmarker.task`,
+        modelAssetPath: `/tasks/hand_landmarker.task`,
         delegate: "GPU"
       },
       runningMode: "VIDEO",
@@ -131,12 +132,30 @@ class Mediapipe {
       video.lastVideoTime = video.currentTime;
 
       const now = performance.now();
-      const initialResults = this.landmarker.detectForVideo(this.video, performance.now());
+      const initialResults = this.landmarker.detectForVideo(this.video, now);
       this.processResults(initialResults, now / 1000);
     }
 
     if (this.showDebug) {
       this.drawDebug();
+    }
+  }
+
+  async workerPredict() {
+    if (!this.isReady) return;
+    const video = this.video;
+
+    if (video.lastVideoTime === video.currentTime) return;
+    video.lastVideoTime = video.currentTime;
+
+    const timestamp = performance.now();
+    const bitmap = await createImageBitmap(this.video);
+
+    if (this.workerIsProcessing) {
+      bitmap.close();
+    } else {
+      this.worker.postMessage({ frame: bitmap, timestamp }, [bitmap]);
+      this.workerIsProcessing = true;
     }
   }
 
@@ -231,6 +250,17 @@ class Mediapipe {
     }
 
     this.ctx.restore();
+  }
+
+  private initWorker() {
+    this.worker.onmessage = (e) => {
+      this.workerIsProcessing = false;
+      const msg = e.data;
+      if (msg.type === "results") {
+        this.processResults(msg.results, performance.now() / 1000);
+        if (this.showDebug) this.drawDebug();
+      }
+    };
   }
 
   private initFilters() {
