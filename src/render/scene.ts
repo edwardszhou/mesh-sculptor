@@ -18,6 +18,8 @@ class SculptScene {
   showDebug: boolean;
   showStats: boolean;
 
+  private pendingSync: WebGLSync | null;
+
   animate: () => void;
   resize: () => void;
 
@@ -48,6 +50,8 @@ class SculptScene {
 
     this.animate = () => {};
     this.resize = () => {};
+
+    this.pendingSync = null;
 
     this.setupScene();
   }
@@ -93,6 +97,31 @@ class SculptScene {
       this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
       this.camera.updateProjectionMatrix();
     }
+  }
+
+  async waitForGPU() {
+    const gl = this.renderer.getContext() as WebGL2RenderingContext;
+    if (this.pendingSync) {
+      gl.deleteSync(this.pendingSync);
+    }
+    this.pendingSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    return new Promise<void>((resolve) => {
+      const poll = () => {
+        if (!this.pendingSync) {
+          resolve();
+          return;
+        }
+        const status = gl.clientWaitSync(this.pendingSync!, gl.SYNC_FLUSH_COMMANDS_BIT, 0);
+        if (status === gl.ALREADY_SIGNALED || status === gl.CONDITION_SATISFIED) {
+          gl.deleteSync(this.pendingSync);
+          this.pendingSync = null;
+          resolve();
+        } else {
+          setTimeout(poll, 0);
+        }
+      };
+      poll();
+    });
   }
 }
 

@@ -15,6 +15,7 @@ import {
 } from "../utils/filter";
 import { NUM_LMS } from "./landmarks";
 import Stats from "three/addons/libs/stats.module.js";
+import type { Scene } from "three";
 
 export type Handedness = "left" | "right";
 

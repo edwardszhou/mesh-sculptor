@@ -18,7 +18,8 @@ const appConfig = {
   SHOW_MEDIAPIPE_STATS: true,
   SHOW_HAND_MESH: true,
   MEDIAPIPE_FILTER: FILTERS.ONEEURO,
-  MEDIAPIPE_DUMMY: false
+  MEDIAPIPE_DUMMY: false,
+  MEDIAPIPE_WORKER: false
 };
 
 const scene = new SculptScene(appConfig.SHOW_WORLD_GRID, appConfig.SHOW_SCENE_STATS);
@@ -32,7 +33,7 @@ const mediapipe = await Mediapipe.create(
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
-const voxelGrid = new VoxelGrid(48, 4, 8, appConfig.SHOW_VOXEL_GRID);
+const voxelGrid = new VoxelGrid(64, 4, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere;
@@ -87,17 +88,16 @@ scene.add(handsTracker.mesh.points);
 scene.resize = () => {
   mediapipe.resize();
 };
-scene.animate = () => {
-  // mediapipe.predict();
-  mediapipe.workerPredict();
-  handsTracker.update(mediapipe.results, scene);
+scene.animate = async () => {
+  if (appConfig.MEDIAPIPE_WORKER) {
+    await scene.waitForGPU();
+    mediapipe.workerPredict();
+  } else {
+    mediapipe.predict();
+  }
 
+  handsTracker.update(mediapipe.results, scene);
   // logPerformance(() => {
   marchingCubes.triangulateDirty();
   // }, "Time for global triangulation: ");
-
-  // const buf = new Uint8Array(4);
-  // scene.renderer
-  //   .getContext()
-  //   .readPixels(0, 0, 1, 1, WebGLRenderingContext.RGBA, WebGLRenderingContext.UNSIGNED_BYTE, buf);
 };
