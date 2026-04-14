@@ -1,30 +1,30 @@
 import * as THREE from "three";
 import { clamp } from "../utils/math";
 
-type SDF = (x: number, y: number, z: number) => number;
+type SDF = (wx: number, wy: number, wz: number) => number;
 
 type VoxelChunk = {
   idx: number;
-  x: number;
-  y: number;
-  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
   filledCount: number;
   dirty: boolean;
   readonly size: number;
   readonly maxVoxels: number;
 };
 class VoxelGrid {
-  readonly resolution: number;
-  readonly dx: number;
-  readonly dy: number;
-  readonly dz: number;
-  readonly size: number;
+  readonly voxelResolution: number;
+  readonly vdx: number;
+  readonly vdy: number;
+  readonly vdz: number;
+  readonly numVoxels: number;
 
   readonly worldSize: number;
-  readonly halfSize: number;
-  readonly voxelSize: number;
+  readonly halfWorldSize: number;
+  readonly voxelWorldSize: number;
 
-  readonly chunkSize: number;
+  readonly voxelsPerChunk: number;
   readonly cdx: number;
   readonly cdy: number;
   readonly cdz: number;
@@ -41,22 +41,22 @@ class VoxelGrid {
   constructor(
     resolution: number,
     worldSize: number = 1,
-    chunkSize: number = 8,
+    voxelsPerChunk: number = 8,
     showMesh: boolean = false
   ) {
-    this.resolution = resolution;
-    this.dx = 1;
-    this.dy = resolution;
-    this.dz = resolution * resolution;
-    this.size = resolution * resolution * resolution;
+    this.voxelResolution = resolution;
+    this.vdx = 1;
+    this.vdy = resolution;
+    this.vdz = resolution * resolution;
+    this.numVoxels = resolution * resolution * resolution;
 
     this.worldSize = worldSize;
-    this.halfSize = worldSize / 2;
-    this.voxelSize = worldSize / resolution;
+    this.halfWorldSize = worldSize / 2;
+    this.voxelWorldSize = worldSize / resolution;
 
     // Chunks for partial surface extraction
-    this.chunkSize = chunkSize;
-    this.chunkResolution = Math.ceil(this.resolution / this.chunkSize);
+    this.voxelsPerChunk = voxelsPerChunk;
+    this.chunkResolution = Math.ceil(this.voxelResolution / this.voxelsPerChunk);
     this.cdx = 1;
     this.cdy = this.chunkResolution;
     this.cdz = this.chunkResolution * this.chunkResolution;
@@ -69,65 +69,69 @@ class VoxelGrid {
           const idx = cx + cy * this.chunkResolution + cz * this.chunkResolution ** 2;
           this.chunks.push({
             idx,
-            x: cx * this.chunkSize,
-            y: cy * this.chunkSize,
-            z: cz * this.chunkSize,
+            vx: cx * this.voxelsPerChunk,
+            vy: cy * this.voxelsPerChunk,
+            vz: cz * this.voxelsPerChunk,
             filledCount: 0,
             dirty: false,
-            size: this.chunkSize,
+            size: this.voxelsPerChunk,
             maxVoxels:
-              Math.min(this.chunkSize, this.resolution - cx * this.chunkSize) *
-              Math.min(this.chunkSize, this.resolution - cy * this.chunkSize) *
-              Math.min(this.chunkSize, this.resolution - cz * this.chunkSize)
+              Math.min(this.voxelsPerChunk, this.voxelResolution - cx * this.voxelsPerChunk) *
+              Math.min(this.voxelsPerChunk, this.voxelResolution - cy * this.voxelsPerChunk) *
+              Math.min(this.voxelsPerChunk, this.voxelResolution - cz * this.voxelsPerChunk)
           });
         }
       }
     }
 
-    this.data = new Float32Array(this.size).fill(1);
+    this.data = new Float32Array(this.numVoxels).fill(1);
     this.isosurface = 0;
 
-    const geometry = new THREE.BoxGeometry(this.voxelSize, this.voxelSize, this.voxelSize);
+    const geometry = new THREE.BoxGeometry(
+      this.voxelWorldSize,
+      this.voxelWorldSize,
+      this.voxelWorldSize
+    );
     const material = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       wireframe: true,
       transparent: true,
       opacity: 0.1
     });
-    this.mesh = new THREE.InstancedMesh(geometry, material, this.size);
+    this.mesh = new THREE.InstancedMesh(geometry, material, this.numVoxels);
     this.showMesh = showMesh;
     this.mesh.visible = showMesh;
     this.updateMesh();
   }
 
-  idxToWorld(i: number, j: number, k: number) {
+  vToW(vx: number, vy: number, vz: number) {
     return new THREE.Vector3(
-      i * this.voxelSize - this.halfSize + this.voxelSize / 2,
-      j * this.voxelSize - this.halfSize + this.voxelSize / 2,
-      k * this.voxelSize - this.halfSize + this.voxelSize / 2
+      vx * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2,
+      vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2,
+      vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2
     );
   }
 
-  worldToIdx(x: number, y: number, z: number) {
+  wToV(wx: number, wy: number, wz: number) {
     return [
-      Math.floor((x + this.halfSize) / this.voxelSize),
-      Math.floor((y + this.halfSize) / this.voxelSize),
-      Math.floor((z + this.halfSize) / this.voxelSize)
+      Math.floor((wx + this.halfWorldSize) / this.voxelWorldSize),
+      Math.floor((wy + this.halfWorldSize) / this.voxelWorldSize),
+      Math.floor((wz + this.halfWorldSize) / this.voxelWorldSize)
     ];
   }
 
-  getIdx(i: number, j: number, k: number) {
-    return this.dx * i + this.dy * j + this.dz * k;
+  vIdx(vx: number, vy: number, vz: number) {
+    return this.vdx * vx + this.vdy * vy + this.vdz * vz;
   }
 
-  getVoxel(i: number, j: number, k: number) {
-    return this.data[this.getIdx(i, j, k)];
+  getVoxel(vx: number, vy: number, vz: number) {
+    return this.data[this.vIdx(vx, vy, vz)];
   }
 
-  getChunk(i: number, j: number, k: number) {
-    const cx = Math.floor(i / this.chunkSize);
-    const cy = Math.floor(j / this.chunkSize);
-    const cz = Math.floor(k / this.chunkSize);
+  getChunk(vx: number, vy: number, vz: number) {
+    const cx = Math.floor(vx / this.voxelsPerChunk);
+    const cy = Math.floor(vy / this.voxelsPerChunk);
+    const cz = Math.floor(vz / this.voxelsPerChunk);
     return this.chunks[cx * this.cdx + cy * this.cdy + cz * this.cdz];
   }
 
@@ -151,13 +155,13 @@ class VoxelGrid {
     this.chunksDirty.fill(1);
   }
 
-  setVoxel(i: number, j: number, k: number, val: number) {
-    const idx = this.getIdx(i, j, k);
+  setVoxel(vx: number, vy: number, vz: number, val: number) {
+    const idx = this.vIdx(vx, vy, vz);
     const prev = this.data[idx];
     this.data[idx] = val;
 
     // Update filledCount on the owning chunk
-    const chunk = this.getChunk(i, j, k);
+    const chunk = this.getChunk(vx, vy, vz);
     const prevInside = prev < this.isosurface;
     const valInside = val < this.isosurface;
     chunk.filledCount += !prevInside && valInside ? 1 : prevInside && !valInside ? -1 : 0;
@@ -179,13 +183,13 @@ class VoxelGrid {
   }
 
   setSDF(sdf: SDF) {
-    for (let i = 0; i < this.resolution; i++) {
-      const x = i * this.voxelSize - this.halfSize + this.voxelSize / 2;
-      for (let j = 0; j < this.resolution; j++) {
-        const y = j * this.voxelSize - this.halfSize + this.voxelSize / 2;
-        for (let k = 0; k < this.resolution; k++) {
-          const z = k * this.voxelSize - this.halfSize + this.voxelSize / 2;
-          this.data[this.getIdx(i, j, k)] = sdf(x, y, z);
+    for (let vx = 0; vx < this.voxelResolution; vx++) {
+      const wx = vx * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+      for (let vy = 0; vy < this.voxelResolution; vy++) {
+        const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+        for (let vz = 0; vz < this.voxelResolution; vz++) {
+          const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+          this.data[this.vIdx(vx, vy, vz)] = sdf(wx, wy, wz);
         }
       }
     }
@@ -195,14 +199,14 @@ class VoxelGrid {
   }
 
   applyMinSDF(sdf: SDF) {
-    for (let i = 0; i < this.resolution; i++) {
-      const x = i * this.voxelSize - this.halfSize + this.voxelSize / 2;
-      for (let j = 0; j < this.resolution; j++) {
-        const y = j * this.voxelSize - this.halfSize + this.voxelSize / 2;
-        for (let k = 0; k < this.resolution; k++) {
-          const z = k * this.voxelSize - this.halfSize + this.voxelSize / 2;
-          const val = sdf(x, y, z);
-          const idx = this.getIdx(i, j, k);
+    for (let vx = 0; vx < this.voxelResolution; vx++) {
+      const wx = vx * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+      for (let vy = 0; vy < this.voxelResolution; vy++) {
+        const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+        for (let vz = 0; vz < this.voxelResolution; vz++) {
+          const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+          const val = sdf(wx, wy, wz);
+          const idx = this.vIdx(vx, vy, vz);
           this.data[idx] = Math.min(this.data[idx], val);
         }
       }
@@ -213,14 +217,14 @@ class VoxelGrid {
   }
 
   applyMaxSDF(sdf: SDF) {
-    for (let i = 0; i < this.resolution; i++) {
-      const x = i * this.voxelSize - this.halfSize + this.voxelSize / 2;
-      for (let j = 0; j < this.resolution; j++) {
-        const y = j * this.voxelSize - this.halfSize + this.voxelSize / 2;
-        for (let k = 0; k < this.resolution; k++) {
-          const z = k * this.voxelSize - this.halfSize + this.voxelSize / 2;
-          const val = sdf(x, y, z);
-          const idx = this.getIdx(i, j, k);
+    for (let vx = 0; vx < this.voxelResolution; vx++) {
+      const wx = vx * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+      for (let vy = 0; vy < this.voxelResolution; vy++) {
+        const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+        for (let vz = 0; vz < this.voxelResolution; vz++) {
+          const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+          const val = sdf(wx, wy, wz);
+          const idx = this.vIdx(vx, vy, vz);
           this.data[idx] = Math.max(this.data[idx], val);
         }
       }
@@ -244,49 +248,49 @@ class VoxelGrid {
   }
 
   applyBrush(
-    wx: number,
-    wy: number,
-    wz: number,
+    bwx: number,
+    bwy: number,
+    bwz: number,
     radius: number,
     strengthFn: (dist: number) => number
   ) {
-    const [bi, bj, bk] = this.worldToIdx(wx, wy, wz);
-    const r = Math.ceil(radius / this.voxelSize);
+    const [vxBrush, vyBrush, vzBrush] = this.wToV(bwx, bwy, bwz);
+    const vRadius = Math.ceil(radius / this.voxelWorldSize);
 
-    const i0 = Math.max(0, bi - r - 1);
-    const i1 = Math.min(this.resolution - 1, bi + r);
-    const j0 = Math.max(0, bj - r - 1);
-    const j1 = Math.min(this.resolution - 1, bj + r);
-    const k0 = Math.max(0, bk - r - 1);
-    const k1 = Math.min(this.resolution - 1, bk + r);
+    const vx0 = Math.max(0, vxBrush - vRadius - 1);
+    const vx1 = Math.min(this.voxelResolution - 1, vxBrush + vRadius);
+    const vy0 = Math.max(0, vyBrush - vRadius - 1);
+    const vy1 = Math.min(this.voxelResolution - 1, vyBrush + vRadius);
+    const vz0 = Math.max(0, vzBrush - vRadius - 1);
+    const vz1 = Math.min(this.voxelResolution - 1, vzBrush + vRadius);
 
-    for (let k = k0; k <= k1; k++) {
-      const z = k * this.voxelSize - this.halfSize + this.voxelSize / 2;
-      for (let j = j0; j <= j1; j++) {
-        const y = j * this.voxelSize - this.halfSize + this.voxelSize / 2;
-        for (let i = i0; i <= i1; i++) {
-          const x = i * this.voxelSize - this.halfSize + this.voxelSize / 2;
+    for (let vz = vz0; vz <= vz1; vz++) {
+      const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+      for (let vy = vy0; vy <= vy1; vy++) {
+        const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+        for (let vx = vx0; vx <= vx1; vx++) {
+          const wx = vx * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
 
-          const dx = x - wx;
-          const dy = y - wy;
-          const dz = z - wz;
+          const dwx = wx - bwx;
+          const dwy = wy - bwy;
+          const dwz = wz - bwz;
 
-          const normDist = Math.sqrt(dx * dx + dy * dy + dz * dz) / radius;
+          const normDist = Math.sqrt(dwx * dwx + dwy * dwy + dwz * dwz) / radius;
           if (normDist > 1) continue;
 
           const delta = strengthFn(normDist);
-          const prev = this.getVoxel(i, j, k);
+          const prev = this.getVoxel(vx, vy, vz);
           const newVal = clamp(prev + delta, -1, 1);
-          this.setVoxel(i, j, k, newVal);
+          this.setVoxel(vx, vy, vz, newVal);
         }
       }
     }
-    const cx0 = Math.floor(i0 / this.chunkSize);
-    const cx1 = Math.floor(i1 / this.chunkSize);
-    const cy0 = Math.floor(j0 / this.chunkSize);
-    const cy1 = Math.floor(j1 / this.chunkSize);
-    const cz0 = Math.floor(k0 / this.chunkSize);
-    const cz1 = Math.floor(k1 / this.chunkSize);
+    const cx0 = Math.floor(vx0 / this.voxelsPerChunk);
+    const cx1 = Math.floor(vx1 / this.voxelsPerChunk);
+    const cy0 = Math.floor(vy0 / this.voxelsPerChunk);
+    const cy1 = Math.floor(vy1 / this.voxelsPerChunk);
+    const cz0 = Math.floor(vz0 / this.voxelsPerChunk);
+    const cz1 = Math.floor(vz1 / this.voxelsPerChunk);
 
     for (let cz = cz0; cz <= cz1; cz++)
       for (let cy = cy0; cy <= cy1; cy++)
@@ -294,15 +298,15 @@ class VoxelGrid {
           this.markChunkDirty(this.chunks[cx * this.cdx + cy * this.cdy + cz * this.cdz]);
   }
 
-  carve(x: number, y: number, z: number, radius: number, strength = 0.1) {
-    this.applyBrush(x, y, z, radius, (t) => {
+  carve(wx: number, wy: number, wz: number, radius: number, strength = 0.1) {
+    this.applyBrush(wx, wy, wz, radius, (t) => {
       const falloff = 1 - t * t * (3 - 2 * t);
       return strength * falloff;
     });
   }
 
-  stuff(x: number, y: number, z: number, radius: number, strength = 0.1) {
-    this.applyBrush(x, y, z, radius, (t) => {
+  stuff(wx: number, wy: number, wz: number, radius: number, strength = 0.1) {
+    this.applyBrush(wx, wy, wz, radius, (t) => {
       const falloff = 1 - t * t * (3 - 2 * t);
       return -strength * falloff;
     });
@@ -310,11 +314,11 @@ class VoxelGrid {
 
   updateChunkFilledCounts() {
     for (const chunk of this.chunks) chunk.filledCount = 0;
-    for (let k = 0; k < this.resolution; k++) {
-      for (let j = 0; j < this.resolution; j++) {
-        for (let i = 0; i < this.resolution; i++) {
-          if (this.data[this.getIdx(i, j, k)] < this.isosurface) {
-            this.getChunk(i, j, k).filledCount++;
+    for (let vz = 0; vz < this.voxelResolution; vz++) {
+      for (let vy = 0; vy < this.voxelResolution; vy++) {
+        for (let vx = 0; vx < this.voxelResolution; vx++) {
+          if (this.data[this.vIdx(vx, vy, vz)] < this.isosurface) {
+            this.getChunk(vx, vy, vz).filledCount++;
           }
         }
       }
@@ -324,14 +328,14 @@ class VoxelGrid {
   updateMesh() {
     const matrix = new THREE.Matrix4();
 
-    for (let i = 0; i < this.resolution; i++) {
-      const x = i * this.voxelSize - this.halfSize + this.voxelSize / 2;
-      for (let j = 0; j < this.resolution; j++) {
-        const y = j * this.voxelSize - this.halfSize + this.voxelSize / 2;
-        for (let k = 0; k < this.resolution; k++) {
-          const z = k * this.voxelSize - this.halfSize + this.voxelSize / 2;
-          const idx = this.getIdx(i, j, k);
-          matrix.setPosition(x, y, z);
+    for (let vx = 0; vx < this.voxelResolution; vx++) {
+      const wx = vx * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+      for (let vy = 0; vy < this.voxelResolution; vy++) {
+        const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+        for (let vz = 0; vz < this.voxelResolution; vz++) {
+          const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
+          const idx = this.vIdx(vx, vy, vz);
+          matrix.setPosition(wx, wy, wz);
 
           // const intensity = 1.05 - clamp(this.data[idx], 0.05, 1);
           const intensity = this.data[idx] < 0 ? 1 : 0.05;

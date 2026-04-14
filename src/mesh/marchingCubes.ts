@@ -45,11 +45,11 @@ class MarchingCubes {
     this.enableColors = enableColors;
 
     this.grid = grid;
-    this.normalCache = new Float32Array(grid.size * 3);
-    this.colorCache = new Float32Array(grid.size * 3);
+    this.normalCache = new Float32Array(grid.numVoxels * 3);
+    this.colorCache = new Float32Array(grid.numVoxels * 3);
 
     // Constants for edge calculation
-    this.edgeAxisOffsets = [3 * this.grid.dx, 3 * this.grid.dy, 3 * this.grid.dz];
+    this.edgeAxisOffsets = [3 * this.grid.vdx, 3 * this.grid.vdy, 3 * this.grid.vdz];
     this.edgeAxes = [
       [1, 0, 0],
       [0, 1, 0],
@@ -57,7 +57,7 @@ class MarchingCubes {
     ];
 
     // Max vertices per chunk = max 15 per voxel * # of voxels in chunk (size^3)
-    this.maxVerticesPerChunk = grid.chunkSize ** 3 * 15;
+    this.maxVerticesPerChunk = grid.voxelsPerChunk ** 3 * 15;
     this.chunkVertexCount = new Int32Array(grid.chunks.length);
     this.chunkVertexOffset = new Int32Array(grid.chunks.length).map(
       (_, i) => i * this.maxVerticesPerChunk
@@ -134,9 +134,9 @@ class MarchingCubes {
     if (this.normalCache[nIdx] === 0.0) {
       // only compute if not cached
       const grid = this.grid;
-      this.normalCache[nIdx + 0] = grid.data[vIdx + grid.dx] - grid.data[vIdx - grid.dx];
-      this.normalCache[nIdx + 1] = grid.data[vIdx + grid.dy] - grid.data[vIdx - grid.dy];
-      this.normalCache[nIdx + 2] = grid.data[vIdx + grid.dz] - grid.data[vIdx - grid.dz];
+      this.normalCache[nIdx + 0] = grid.data[vIdx + grid.vdx] - grid.data[vIdx - grid.vdx];
+      this.normalCache[nIdx + 1] = grid.data[vIdx + grid.vdy] - grid.data[vIdx - grid.vdy];
+      this.normalCache[nIdx + 2] = grid.data[vIdx + grid.vdz] - grid.data[vIdx - grid.vdz];
     }
   }
 
@@ -146,13 +146,13 @@ class MarchingCubes {
 
     // Get values of the voxel grid at each corner of the cube
     const i0 = vIdx, // 0,0,0,
-      i1 = i0 + grid.dx, // 1,0,0
-      i2 = i0 + grid.dy, // 0,1,0
-      i3 = i1 + grid.dy, // 1,1,0
-      i4 = i0 + grid.dz, // 0,0,1
-      i5 = i1 + grid.dz, // 1,0,1
-      i6 = i2 + grid.dz, // 0,1,1
-      i7 = i3 + grid.dz; // 1,1,1
+      i1 = i0 + grid.vdx, // 1,0,0
+      i2 = i0 + grid.vdy, // 0,1,0
+      i3 = i1 + grid.vdy, // 1,1,0
+      i4 = i0 + grid.vdz, // 0,0,1
+      i5 = i1 + grid.vdz, // 1,0,1
+      i6 = i2 + grid.vdz, // 0,1,1
+      i7 = i3 + grid.vdz; // 1,1,1
 
     let cubeIdx = 0;
     const field0 = grid.data[i0],
@@ -271,8 +271,8 @@ class MarchingCubes {
 
     let offset = this.vertexCount * 3;
 
-    const posOffset = this.grid.halfSize;
-    const posScale = this.grid.voxelSize;
+    const posOffset = this.grid.halfWorldSize;
+    const posScale = this.grid.voxelWorldSize;
     // positions
     this.positionArray[offset + 0] = this.tempPos[edge1 + 0] * posScale - posOffset;
     this.positionArray[offset + 1] = this.tempPos[edge1 + 1] * posScale - posOffset;
@@ -332,17 +332,17 @@ class MarchingCubes {
   }
 
   private clearChunkNormalCache(chunk: VoxelChunk) {
-    const x0 = Math.max(0, chunk.x - 1);
-    const y0 = Math.max(0, chunk.y - 1);
-    const z0 = Math.max(0, chunk.z - 1);
-    const x1 = Math.min(this.grid.resolution - 1, chunk.x + chunk.size);
-    const y1 = Math.min(this.grid.resolution - 1, chunk.y + chunk.size);
-    const z1 = Math.min(this.grid.resolution - 1, chunk.z + chunk.size);
+    const vx0 = Math.max(0, chunk.vx - 1);
+    const vy0 = Math.max(0, chunk.vy - 1);
+    const vz0 = Math.max(0, chunk.vz - 1);
+    const vx1 = Math.min(this.grid.voxelResolution - 1, chunk.vx + chunk.size);
+    const vy1 = Math.min(this.grid.voxelResolution - 1, chunk.vy + chunk.size);
+    const vz1 = Math.min(this.grid.voxelResolution - 1, chunk.vz + chunk.size);
 
-    for (let z = z0; z <= z1; z++) {
-      for (let y = y0; y <= y1; y++) {
-        for (let x = x0; x <= x1; x++) {
-          const n = this.grid.getIdx(x, y, z) * 3;
+    for (let vz = vz0; vz <= vz1; vz++) {
+      for (let vy = vy0; vy <= vy1; vy++) {
+        for (let vx = vx0; vx <= vx1; vx++) {
+          const n = this.grid.vIdx(vx, vy, vz) * 3;
           this.normalCache[n] = 0;
           this.normalCache[n + 1] = 0;
           this.normalCache[n + 2] = 0;
@@ -372,15 +372,15 @@ class MarchingCubes {
     this.normalCache.fill(0);
 
     // Avoid triangulating edges b/c degenerate normals
-    const resolution = this.grid.resolution - 2;
+    const resolution = this.grid.voxelResolution - 2;
 
-    for (let z = 1; z < resolution; z++) {
-      const zOffset = this.grid.dz * z;
-      for (let y = 1; y < resolution; y++) {
-        const yzOffset = zOffset + this.grid.dy * y;
-        for (let x = 1; x < resolution; x++) {
-          const xyzOffset = yzOffset + this.grid.dx * x;
-          this.polygonize(x, y, z, xyzOffset);
+    for (let vz = 1; vz < resolution; vz++) {
+      const zOffset = this.grid.vdz * vz;
+      for (let vy = 1; vy < resolution; vy++) {
+        const yzOffset = zOffset + this.grid.vdy * vy;
+        for (let vx = 1; vx < resolution; vx++) {
+          const xyzOffset = yzOffset + this.grid.vdx * vx;
+          this.polygonize(vx, vy, vz, xyzOffset);
         }
       }
     }
@@ -425,20 +425,20 @@ class MarchingCubes {
       this.vertexCount = chunkStart;
 
       // Include adjacent cell corners, so that there are no holes
-      const x0 = Math.max(1, chunk.x);
-      const y0 = Math.max(1, chunk.y);
-      const z0 = Math.max(1, chunk.z);
-      const x1 = Math.min(this.grid.resolution - 2, chunk.x + chunk.size);
-      const y1 = Math.min(this.grid.resolution - 2, chunk.y + chunk.size);
-      const z1 = Math.min(this.grid.resolution - 2, chunk.z + chunk.size);
+      const vx0 = Math.max(1, chunk.vx);
+      const vy0 = Math.max(1, chunk.vy);
+      const vz0 = Math.max(1, chunk.vz);
+      const vx1 = Math.min(this.grid.voxelResolution - 2, chunk.vx + chunk.size);
+      const vy1 = Math.min(this.grid.voxelResolution - 2, chunk.vy + chunk.size);
+      const vz1 = Math.min(this.grid.voxelResolution - 2, chunk.vz + chunk.size);
 
-      for (let z = z0; z <= z1; z++) {
-        const zOffset = this.grid.dz * z;
-        for (let y = y0; y <= y1; y++) {
-          const yzOffset = zOffset + this.grid.dy * y;
-          for (let x = x0; x <= x1; x++) {
-            const xyzOffset = yzOffset + this.grid.dx * x;
-            this.polygonize(x, y, z, xyzOffset);
+      for (let vz = vz0; vz <= vz1; vz++) {
+        const zOffset = this.grid.vdz * vz;
+        for (let vy = vy0; vy <= vy1; vy++) {
+          const yzOffset = zOffset + this.grid.vdy * vy;
+          for (let vx = vx0; vx <= vx1; vx++) {
+            const xyzOffset = yzOffset + this.grid.vdx * vx;
+            this.polygonize(vx, vy, vz, xyzOffset);
           }
         }
       }

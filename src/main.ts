@@ -7,8 +7,7 @@ import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
-import { MotionGesture, PinchGesture } from "./gestures/gesture";
-import type { HandState } from "./gestures/handState";
+import { PinchGesture } from "./gestures/gesture";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
@@ -48,11 +47,11 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.02, 5);
+const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.2, 5);
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    voxelGrid.carve(indexPos.x, indexPos.y, indexPos.z, 0.2, 1);
+    voxelGrid.carve(indexPos.x, indexPos.y, indexPos.z, 0.2, 0.5);
   }
 };
 pinchGesture.onStart = (_gesture, _hand, h) => {
@@ -63,22 +62,10 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  voxelGrid.stuff(indexPos.x, indexPos.y, indexPos.z, 0.2, 1);
-};
-
-const detectLeft = (hand: HandState) => {
-  return hand.landmarks[LM.WRIST].x < 0.4;
-};
-const detectRight = (hand: HandState) => {
-  return hand.landmarks[LM.WRIST].x > 0.8;
-};
-const swipeGesture = new MotionGesture("swipe", detectLeft, detectRight, 500);
-swipeGesture.onTriggerAB = (_gesture, _hand, _h) => {
-  voxelGrid.setGrid(1);
+  voxelGrid.stuff(indexPos.x, indexPos.y, indexPos.z, 0.2, 0.5);
 };
 
 handsTracker.addGesture(pinchGesture);
-handsTracker.addGesture(swipeGesture);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);

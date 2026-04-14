@@ -203,5 +203,7 @@ export class PinchGesture extends HandGesture {
 
 export function fingerDistances(hand: HandState, reference: LM, fingers: Finger[]) {
   if (!hand.landmarks.length) return Array(fingers.length).fill(-1);
-  return fingers.map((f) => lmDistance2D(hand.worldLandmarks, reference, LM_TIPS[f]));
+  return fingers.map(
+    (f) => lmDistance2D(hand.landmarks, reference, LM_TIPS[f]) / hand.transform.scale
+  );
 }
