@@ -4,6 +4,7 @@ export type BrushContext = {
   vz: number;
   current: number;
   weight: number;
+  direction: [number, number, number];
   getVal: (vx: number, vy: number, vz: number) => number;
 };
 
@@ -24,14 +25,21 @@ class Brush {
   falloff: FalloffFn;
 
   before?: () => void;
-  apply?: (ctx: BrushContext) => number;
+  apply: (ctx: BrushContext) => number;
   after?: () => void;
 
-  constructor(id: string, radius: number, strength: number, falloff: FalloffFn) {
+  constructor(
+    id: string,
+    radius: number,
+    strength: number,
+    falloff: FalloffFn,
+    apply: (ctx: BrushContext) => number
+  ) {
     this.id = id;
     this.radius = radius;
     this.strength = strength;
     this.falloff = falloff;
+    this.apply = apply;
   }
 }
 

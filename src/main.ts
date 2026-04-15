@@ -49,28 +49,46 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const carveBrush = new Brush("carve", 0.2, 0.5, FALLOFF.cubic);
-carveBrush.apply = ({ current, weight }) => {
-  return clamp(current + weight, -1, 1);
-};
+const carveBrush = new Brush("carve", 0.2, 0.5, FALLOFF.cubic, ({ current, weight }) =>
+  clamp(current + weight, -1, 1)
+);
 
-const stuffBrush = new Brush("stuff", 0.3, 0.3, FALLOFF.cubic);
-stuffBrush.apply = ({ current, weight }) => {
-  return clamp(current - weight, -1, 1);
-};
+const stuffBrush = new Brush("stuff", 0.3, 0.3, FALLOFF.cubic, ({ current, weight }) =>
+  clamp(current - weight, -1, 1)
+);
 
-const smoothBrush = new Brush("smooth", 0.3, 0.3, FALLOFF.cubic);
-smoothBrush.apply = ({ vx, vy, vz, getVal, current, weight }) => {
-  const avg =
-    (getVal(vx + 1, vy, vz) +
-      getVal(vx - 1, vy, vz) +
-      getVal(vx, vy + 1, vz) +
-      getVal(vx, vy - 1, vz) +
-      getVal(vx, vy, vz + 1) +
-      getVal(vx, vy, vz - 1)) /
-    6;
-  return current + weight * (avg - current);
-};
+const smoothBrush = new Brush(
+  "smooth",
+  0.3,
+  0.5,
+  FALLOFF.cubic,
+  ({ vx, vy, vz, getVal, current, weight }) => {
+    const avg =
+      (getVal(vx + 1, vy, vz) +
+        getVal(vx - 1, vy, vz) +
+        getVal(vx, vy + 1, vz) +
+        getVal(vx, vy - 1, vz) +
+        getVal(vx, vy, vz + 1) +
+        getVal(vx, vy, vz - 1)) /
+      6;
+    return current + weight * (avg - current);
+  }
+);
+
+const pinchBrush = new Brush(
+  "pinch",
+  0.3,
+  0.8,
+  FALLOFF.cubic,
+  ({ vx, vy, vz, getVal, weight, direction }) => {
+    const [dvx, dvy, dvz] = direction;
+    const shift = weight * 0.5;
+    const vxSample = vx + Math.round(-dvx * shift);
+    const vySample = vy + Math.round(-dvy * shift);
+    const vzSample = vz + Math.round(-dvz * shift);
+    return getVal(vxSample, vySample, vzSample);
+  }
+);
 
 const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.2, 5);
 pinchGesture.onUpdate = (gesture, hand, h) => {

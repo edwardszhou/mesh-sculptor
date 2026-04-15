@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Brush } from "./brush";
+import { clamp } from "../utils/math";
 
 export type SDF = (wx: number, wy: number, wz: number) => number;
 
@@ -268,8 +269,12 @@ class VoxelGrid {
     const dzTemp = dyTemp * (vy1 - vy0 + 1);
 
     const temp = new Float32Array(dyTemp * dzTemp);
-    const tempIdx = (vx: number, vy: number, vz: number) =>
-      (vz - vz0) * dzTemp + (vy - vy0) * dyTemp + (vx - vx0);
+    const tempIdx = (vx: number, vy: number, vz: number) => {
+      vx = clamp(vx, vx0, vx1);
+      vy = clamp(vy, vy0, vy1);
+      vz = clamp(vz, vz0, vz1);
+      return (vz - vz0) * dzTemp + (vy - vy0) * dyTemp + (vx - vx0);
+    };
     const getTemp = (vx: number, vy: number, vz: number) => temp[tempIdx(vx, vy, vz)];
 
     for (let vz = vz0; vz <= vz1; vz++)
@@ -288,12 +293,18 @@ class VoxelGrid {
           const dwy = wy - bwy;
           const dwz = wz - bwz;
 
-          const normDist = Math.sqrt(dwx * dwx + dwy * dwy + dwz * dwz) / brush.radius;
-          if (normDist > 1) continue;
+          const direction = [
+            dwx / this.voxelWorldSize,
+            dwy / this.voxelWorldSize,
+            dwz / this.voxelWorldSize
+          ] satisfies [number, number, number];
 
-          const weight = brush.falloff(normDist);
+          const normDist = dwx * dwx + dwy * dwy + dwz * dwz;
+          if (normDist > brush.radius ** 2) continue;
+
+          const weight = brush.falloff(Math.sqrt(normDist) / brush.radius);
           const current = getTemp(vx, vy, vz);
-          const next = brush.apply?.({ vx, vy, vz, weight, current, getVal: getTemp });
+          const next = brush.apply({ vx, vy, vz, current, weight, direction, getVal: getTemp });
 
           if (next && next !== current) {
             this.setVoxel(vx, vy, vz, next);
