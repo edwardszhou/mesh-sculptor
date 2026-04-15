@@ -24,11 +24,8 @@ self.onmessage = (event) => {
   if (!landmarker) return;
 
   const { frame, timestamp } = event.data;
-  const start = performance.now();
   const results = landmarker.detectForVideo(frame, timestamp);
-  const end = performance.now();
   frame.close();
 
-  // console.log("Worker inference ms: ", end - start);
   self.postMessage({ results, type: "results" });
 };

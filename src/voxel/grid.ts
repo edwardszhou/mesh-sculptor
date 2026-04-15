@@ -1,7 +1,12 @@
 import * as THREE from "three";
-import { clamp } from "../utils/math";
+import type { Brush } from "./brush";
 
-type SDF = (wx: number, wy: number, wz: number) => number;
+export type SDF = (wx: number, wy: number, wz: number) => number;
+
+export type AABB = {
+  min: [number, number, number];
+  max: [number, number, number];
+};
 
 type VoxelChunk = {
   idx: number;
@@ -33,6 +38,7 @@ class VoxelGrid {
   readonly chunksDirty: Uint8Array;
 
   data: Float32Array;
+
   mesh: THREE.InstancedMesh;
   showMesh: boolean;
 
@@ -247,15 +253,9 @@ class VoxelGrid {
     this.updateChunkFilledCounts();
   }
 
-  applyBrush(
-    bwx: number,
-    bwy: number,
-    bwz: number,
-    radius: number,
-    strengthFn: (dist: number) => number
-  ) {
+  applyBrush(brush: Brush, bwx: number, bwy: number, bwz: number) {
     const [vxBrush, vyBrush, vzBrush] = this.wToV(bwx, bwy, bwz);
-    const vRadius = Math.ceil(radius / this.voxelWorldSize);
+    const vRadius = Math.ceil(brush.radius / this.voxelWorldSize);
 
     const vx0 = Math.max(0, vxBrush - vRadius - 1);
     const vx1 = Math.min(this.voxelResolution - 1, vxBrush + vRadius);
@@ -264,6 +264,19 @@ class VoxelGrid {
     const vz0 = Math.max(0, vzBrush - vRadius - 1);
     const vz1 = Math.min(this.voxelResolution - 1, vzBrush + vRadius);
 
+    const dyTemp = vx1 - vx0 + 1;
+    const dzTemp = dyTemp * (vy1 - vy0 + 1);
+
+    const temp = new Float32Array(dyTemp * dzTemp);
+    const tempIdx = (vx: number, vy: number, vz: number) =>
+      (vz - vz0) * dzTemp + (vy - vy0) * dyTemp + (vx - vx0);
+    const getTemp = (vx: number, vy: number, vz: number) => temp[tempIdx(vx, vy, vz)];
+
+    for (let vz = vz0; vz <= vz1; vz++)
+      for (let vy = vy0; vy <= vy1; vy++)
+        for (let vx = vx0; vx <= vx1; vx++) temp[tempIdx(vx, vy, vz)] = this.getVoxel(vx, vy, vz);
+
+    let changed = false;
     for (let vz = vz0; vz <= vz1; vz++) {
       const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
       for (let vy = vy0; vy <= vy1; vy++) {
@@ -275,41 +288,34 @@ class VoxelGrid {
           const dwy = wy - bwy;
           const dwz = wz - bwz;
 
-          const normDist = Math.sqrt(dwx * dwx + dwy * dwy + dwz * dwz) / radius;
+          const normDist = Math.sqrt(dwx * dwx + dwy * dwy + dwz * dwz) / brush.radius;
           if (normDist > 1) continue;
 
-          const delta = strengthFn(normDist);
-          const prev = this.getVoxel(vx, vy, vz);
-          const newVal = clamp(prev + delta, -1, 1);
-          this.setVoxel(vx, vy, vz, newVal);
+          const weight = brush.falloff(normDist);
+          const current = getTemp(vx, vy, vz);
+          const next = brush.apply?.({ vx, vy, vz, weight, current, getVal: getTemp });
+
+          if (next && next !== current) {
+            this.setVoxel(vx, vy, vz, next);
+            changed = true;
+          }
         }
       }
     }
-    const cx0 = Math.floor(vx0 / this.voxelsPerChunk);
-    const cx1 = Math.floor(vx1 / this.voxelsPerChunk);
-    const cy0 = Math.floor(vy0 / this.voxelsPerChunk);
-    const cy1 = Math.floor(vy1 / this.voxelsPerChunk);
-    const cz0 = Math.floor(vz0 / this.voxelsPerChunk);
-    const cz1 = Math.floor(vz1 / this.voxelsPerChunk);
 
-    for (let cz = cz0; cz <= cz1; cz++)
-      for (let cy = cy0; cy <= cy1; cy++)
-        for (let cx = cx0; cx <= cx1; cx++)
-          this.markChunkDirty(this.chunks[cx * this.cdx + cy * this.cdy + cz * this.cdz]);
-  }
+    if (changed) {
+      const cx0 = Math.floor(vx0 / this.voxelsPerChunk);
+      const cx1 = Math.floor(vx1 / this.voxelsPerChunk);
+      const cy0 = Math.floor(vy0 / this.voxelsPerChunk);
+      const cy1 = Math.floor(vy1 / this.voxelsPerChunk);
+      const cz0 = Math.floor(vz0 / this.voxelsPerChunk);
+      const cz1 = Math.floor(vz1 / this.voxelsPerChunk);
 
-  carve(wx: number, wy: number, wz: number, radius: number, strength = 0.1) {
-    this.applyBrush(wx, wy, wz, radius, (t) => {
-      const falloff = 1 - t * t * (3 - 2 * t);
-      return strength * falloff;
-    });
-  }
-
-  stuff(wx: number, wy: number, wz: number, radius: number, strength = 0.1) {
-    this.applyBrush(wx, wy, wz, radius, (t) => {
-      const falloff = 1 - t * t * (3 - 2 * t);
-      return -strength * falloff;
-    });
+      for (let cz = cz0; cz <= cz1; cz++)
+        for (let cy = cy0; cy <= cy1; cy++)
+          for (let cx = cx0; cx <= cx1; cx++)
+            this.markChunkDirty(this.chunks[cx * this.cdx + cy * this.cdy + cz * this.cdz]);
+    }
   }
 
   updateChunkFilledCounts() {

@@ -8,6 +8,8 @@ import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
 import { PinchGesture } from "./gestures/gesture";
+import { Brush, FALLOFF } from "./voxel/brush";
+import { clamp } from "./utils/math";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
@@ -47,11 +49,34 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
+const carveBrush = new Brush("carve", 0.2, 0.5, FALLOFF.cubic);
+carveBrush.apply = ({ current, weight }) => {
+  return clamp(current + weight, -1, 1);
+};
+
+const stuffBrush = new Brush("stuff", 0.3, 0.3, FALLOFF.cubic);
+stuffBrush.apply = ({ current, weight }) => {
+  return clamp(current - weight, -1, 1);
+};
+
+const smoothBrush = new Brush("smooth", 0.3, 0.3, FALLOFF.cubic);
+smoothBrush.apply = ({ vx, vy, vz, getVal, current, weight }) => {
+  const avg =
+    (getVal(vx + 1, vy, vz) +
+      getVal(vx - 1, vy, vz) +
+      getVal(vx, vy + 1, vz) +
+      getVal(vx, vy - 1, vz) +
+      getVal(vx, vy, vz + 1) +
+      getVal(vx, vy, vz - 1)) /
+    6;
+  return current + weight * (avg - current);
+};
+
 const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.2, 5);
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    voxelGrid.carve(indexPos.x, indexPos.y, indexPos.z, 0.2, 0.5);
+    voxelGrid.applyBrush(carveBrush, indexPos.x, indexPos.y, indexPos.z);
   }
 };
 pinchGesture.onStart = (_gesture, _hand, h) => {
@@ -62,7 +87,7 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  voxelGrid.stuff(indexPos.x, indexPos.y, indexPos.z, 0.2, 0.5);
+  voxelGrid.applyBrush(smoothBrush, indexPos.x, indexPos.y, indexPos.z);
 };
 
 handsTracker.addGesture(pinchGesture);
