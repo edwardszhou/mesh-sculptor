@@ -1,3 +1,5 @@
+import { clamp } from "../utils/math";
+
 export type BrushContext = {
   vx: number;
   vy: number;
@@ -17,30 +19,57 @@ export const FALLOFF = {
 
 export type FalloffFn = (t: number) => number;
 
-class Brush {
-  id: string;
+export type Brush = {
   radius: number;
   strength: number;
-  state: any;
   falloff: FalloffFn;
 
+  state?: any;
   before?: () => void;
   apply: (ctx: BrushContext) => number;
   after?: () => void;
+};
 
-  constructor(
-    id: string,
-    radius: number,
-    strength: number,
-    falloff: FalloffFn,
-    apply: (ctx: BrushContext) => number
-  ) {
-    this.id = id;
-    this.radius = radius;
-    this.strength = strength;
-    this.falloff = falloff;
-    this.apply = apply;
+export const BrushSet: Record<string, Brush> = {
+  carve: {
+    radius: 0.2,
+    strength: 0.2,
+    falloff: FALLOFF.cubic,
+    apply: ({ current, weight }) => clamp(current + weight, -1, 1)
+  },
+  stuff: {
+    radius: 0.2,
+    strength: 0.2,
+    falloff: FALLOFF.cubic,
+    apply: ({ current, weight }) => clamp(current - weight, -1, 1)
+  },
+  smooth: {
+    radius: 0.2,
+    strength: 0.2,
+    falloff: FALLOFF.cubic,
+    apply: ({ vx, vy, vz, getVal, current, weight }) => {
+      const avg =
+        (getVal(vx + 1, vy, vz) +
+          getVal(vx - 1, vy, vz) +
+          getVal(vx, vy + 1, vz) +
+          getVal(vx, vy - 1, vz) +
+          getVal(vx, vy, vz + 1) +
+          getVal(vx, vy, vz - 1)) /
+        6;
+      return current + weight * (avg - current);
+    }
+  },
+  pinch: {
+    radius: 0.3,
+    strength: 0.8,
+    falloff: FALLOFF.cubic,
+    apply: ({ vx, vy, vz, getVal, weight, current, direction }) => {
+      const [dvx, dvy, dvz] = direction;
+      const shift = weight * 0.5;
+      const vxSample = vx + Math.round(-dvx * shift);
+      const vySample = vy + Math.round(-dvy * shift);
+      const vzSample = vz + Math.round(-dvz * shift);
+      return clamp(current - getVal(vxSample, vySample, vzSample), -1, 1);
+    }
   }
-}
-
-export { Brush };
+};

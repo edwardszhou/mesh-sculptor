@@ -8,14 +8,13 @@ import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
 import { PinchGesture } from "./gestures/gesture";
-import { Brush, FALLOFF } from "./voxel/brush";
-import { clamp } from "./utils/math";
+import { BrushSet } from "./voxel/brush";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
   SHOW_VOXEL_GRID: false,
   SHOW_SCENE_STATS: true,
-  SHOW_MEDIAPIPE_CONNECTIONS: true,
+  SHOW_MEDIAPIPE_CONNECTIONS: false,
   SHOW_MEDIAPIPE_STATS: true,
   SHOW_HAND_MESH: true,
   MEDIAPIPE_FILTER: FILTERS.ONEEURO,
@@ -34,7 +33,7 @@ const mediapipe = await Mediapipe.create(
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
-const voxelGrid = new VoxelGrid(64, 4, 8, appConfig.SHOW_VOXEL_GRID);
+const voxelGrid = new VoxelGrid(64, 8, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere;
@@ -49,52 +48,11 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const carveBrush = new Brush("carve", 0.2, 0.5, FALLOFF.cubic, ({ current, weight }) =>
-  clamp(current + weight, -1, 1)
-);
-
-const stuffBrush = new Brush("stuff", 0.3, 0.3, FALLOFF.cubic, ({ current, weight }) =>
-  clamp(current - weight, -1, 1)
-);
-
-const smoothBrush = new Brush(
-  "smooth",
-  0.3,
-  0.5,
-  FALLOFF.cubic,
-  ({ vx, vy, vz, getVal, current, weight }) => {
-    const avg =
-      (getVal(vx + 1, vy, vz) +
-        getVal(vx - 1, vy, vz) +
-        getVal(vx, vy + 1, vz) +
-        getVal(vx, vy - 1, vz) +
-        getVal(vx, vy, vz + 1) +
-        getVal(vx, vy, vz - 1)) /
-      6;
-    return current + weight * (avg - current);
-  }
-);
-
-const pinchBrush = new Brush(
-  "pinch",
-  0.3,
-  0.8,
-  FALLOFF.cubic,
-  ({ vx, vy, vz, getVal, weight, direction }) => {
-    const [dvx, dvy, dvz] = direction;
-    const shift = weight * 0.5;
-    const vxSample = vx + Math.round(-dvx * shift);
-    const vySample = vy + Math.round(-dvy * shift);
-    const vzSample = vz + Math.round(-dvz * shift);
-    return getVal(vxSample, vySample, vzSample);
-  }
-);
-
 const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.2, 5);
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    voxelGrid.applyBrush(carveBrush, indexPos.x, indexPos.y, indexPos.z);
+    voxelGrid.applyBrush(BrushSet.carve, indexPos.x, indexPos.y, indexPos.z);
   }
 };
 pinchGesture.onStart = (_gesture, _hand, h) => {
@@ -105,7 +63,7 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  voxelGrid.applyBrush(smoothBrush, indexPos.x, indexPos.y, indexPos.z);
+  voxelGrid.applyBrush(BrushSet.stuff, indexPos.x, indexPos.y, indexPos.z);
 };
 
 handsTracker.addGesture(pinchGesture);
@@ -126,6 +84,7 @@ scene.animate = async () => {
     mediapipe.predict();
   }
 
+  voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
   // logPerformance(() => {
   marchingCubes.triangulateDirty();
