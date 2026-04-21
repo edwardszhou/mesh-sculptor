@@ -33,7 +33,7 @@ const mediapipe = await Mediapipe.create(
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
-const voxelGrid = new VoxelGrid(64, 8, 8, appConfig.SHOW_VOXEL_GRID);
+const voxelGrid = new VoxelGrid(96, 8, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere;
@@ -47,12 +47,12 @@ const marchedMesh = new THREE.Mesh(
 );
 
 const handsTracker = new HandsTracker(true);
-
 const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.2, 5);
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    // voxelGrid.applyBrush(BrushSet.carve, indexPos.x, indexPos.y, indexPos.z);
+    voxelGrid.applyBrush(BrushSet.carve, indexPos.x, indexPos.y, indexPos.z);
+    voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
   }
 };
 pinchGesture.onStart = (_gesture, _hand, h) => {
@@ -63,7 +63,8 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
+  voxelGrid.applyBrush(BrushSet.stuff, indexPos.x, indexPos.y, indexPos.z);
+  voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
 };
 
 handsTracker.addGesture(pinchGesture);

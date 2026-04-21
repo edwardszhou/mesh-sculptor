@@ -44,8 +44,8 @@ export const BrushSet: Record<string, Brush> = {
     apply: ({ current, weight }) => clamp(current - weight, -1, 1)
   },
   smooth: {
-    radius: 0.2,
-    strength: 0.2,
+    radius: 0.3,
+    strength: 0.8,
     falloff: FALLOFF.cubic,
     apply: ({ vx, vy, vz, getVal, current, weight }) => {
       const avg =
