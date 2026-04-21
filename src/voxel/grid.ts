@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Brush } from "./brush";
-import { clamp } from "../utils/math";
+import { clamp, FALLOFF } from "../utils/math";
 
 export type SDF = (wx: number, wy: number, wz: number) => number;
 
@@ -196,7 +196,7 @@ class VoxelGrid {
         const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
         for (let vz = 0; vz < this.voxelResolution; vz++) {
           const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
-          this.data[this.vIdx(vx, vy, vz)] = sdf(wx, wy, wz);
+          this.data[this.vIdx(vx, vy, vz)] = clamp(sdf(wx, wy, wz), -1, 1);
         }
       }
     }
@@ -212,7 +212,7 @@ class VoxelGrid {
         const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
         for (let vz = 0; vz < this.voxelResolution; vz++) {
           const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
-          const val = sdf(wx, wy, wz);
+          const val = clamp(sdf(wx, wy, wz), -1, 1);
           const idx = this.vIdx(vx, vy, vz);
           this.data[idx] = Math.min(this.data[idx], val);
         }
@@ -230,7 +230,7 @@ class VoxelGrid {
         const wy = vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
         for (let vz = 0; vz < this.voxelResolution; vz++) {
           const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
-          const val = sdf(wx, wy, wz);
+          const val = clamp(sdf(wx, wy, wz), -1, 1);
           const idx = this.vIdx(vx, vy, vz);
           this.data[idx] = Math.max(this.data[idx], val);
         }
@@ -257,6 +257,7 @@ class VoxelGrid {
   applyBrush(brush: Brush, bwx: number, bwy: number, bwz: number) {
     const [vxBrush, vyBrush, vzBrush] = this.wToV(bwx, bwy, bwz);
     const vRadius = Math.ceil(brush.radius / this.voxelWorldSize);
+    const bRadius2 = brush.radius ** 2;
 
     const vx0 = Math.max(0, vxBrush - vRadius - 1);
     const vx1 = Math.min(this.voxelResolution - 1, vxBrush + vRadius);
@@ -281,6 +282,8 @@ class VoxelGrid {
       for (let vy = vy0; vy <= vy1; vy++)
         for (let vx = vx0; vx <= vx1; vx++) temp[tempIdx(vx, vy, vz)] = this.getVoxel(vx, vy, vz);
 
+    const massBefore = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius);
+
     let changed = false;
     for (let vz = vz0; vz <= vz1; vz++) {
       const wz = vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2;
@@ -293,26 +296,30 @@ class VoxelGrid {
           const dwy = wy - bwy;
           const dwz = wz - bwz;
 
-          const direction = [
-            dwx / this.voxelWorldSize,
-            dwy / this.voxelWorldSize,
-            dwz / this.voxelWorldSize
-          ] satisfies [number, number, number];
+          const direction = [dwx, dwy, dwz] satisfies [number, number, number];
 
-          const normDist = dwx * dwx + dwy * dwy + dwz * dwz;
-          if (normDist > brush.radius ** 2) continue;
+          const normDist2 = dwx * dwx + dwy * dwy + dwz * dwz;
+          if (normDist2 > bRadius2) continue;
 
-          const weight = brush.falloff(Math.sqrt(normDist) / brush.radius);
+          const weight = brush.falloff(Math.sqrt(normDist2) / brush.radius);
           const current = getTemp(vx, vy, vz);
           const next = brush.apply({ vx, vy, vz, current, weight, direction, getVal: getTemp });
 
-          if (next && next !== current) {
+          if (next != undefined && next !== current) {
             this.setVoxel(vx, vy, vz, next);
             changed = true;
           }
         }
       }
     }
+
+    const massAfter = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius);
+    const delta = massAfter - massBefore;
+    this.applyVolumeCorrection(vxBrush, vyBrush, vzBrush, vRadius, vRadius * 2, delta);
+
+    const massCorrected = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius);
+    const delta2 = massCorrected - massAfter;
+    console.log(delta, delta2);
 
     if (changed) {
       const cx0 = Math.floor(vx0 / this.voxelsPerChunk);
@@ -326,6 +333,73 @@ class VoxelGrid {
         for (let cy = cy0; cy <= cy1; cy++)
           for (let cx = cx0; cx <= cx1; cx++)
             this.markChunkDirty(this.chunks[cx * this.cdx + cy * this.cdy + cz * this.cdz]);
+    }
+  }
+
+  private calculateMass(vxc: number, vyc: number, vzc: number, radius: number) {
+    const vx0 = Math.max(0, vxc - radius - 1);
+    const vx1 = Math.min(this.voxelResolution - 1, vxc + radius);
+    const vy0 = Math.max(0, vyc - radius - 1);
+    const vy1 = Math.min(this.voxelResolution - 1, vyc + radius);
+    const vz0 = Math.max(0, vzc - radius - 1);
+    const vz1 = Math.min(this.voxelResolution - 1, vzc + radius);
+    const radius2 = radius * radius;
+    let mass = 0;
+
+    for (let vz = vz0; vz <= vz1; vz++) {
+      for (let vy = vy0; vy <= vy1; vy++) {
+        for (let vx = vx0; vx <= vx1; vx++) {
+          const vDist2 = (vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2;
+          if (vDist2 > radius2) continue;
+          mass += this.isosurface - this.getVoxel(vx, vy, vz);
+        }
+      }
+    }
+
+    return mass;
+  }
+
+  private applyVolumeCorrection(
+    vxc: number,
+    vyc: number,
+    vzc: number,
+    innerRadius: number,
+    outerRadius: number,
+    delta: number
+  ) {
+    const vx0 = Math.max(0, vxc - outerRadius - 1);
+    const vx1 = Math.min(this.voxelResolution - 1, vxc + outerRadius);
+    const vy0 = Math.max(0, vyc - outerRadius - 1);
+    const vy1 = Math.min(this.voxelResolution - 1, vyc + outerRadius);
+    const vz0 = Math.max(0, vzc - outerRadius - 1);
+    const vz1 = Math.min(this.voxelResolution - 1, vzc + outerRadius);
+
+    let totalWeight = 0;
+    for (let vz = vz0; vz <= vz1; vz++) {
+      for (let vy = vy0; vy <= vy1; vy++) {
+        for (let vx = vx0; vx <= vx1; vx++) {
+          const vDist = Math.sqrt((vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2);
+          if (vDist < innerRadius || vDist > outerRadius) continue;
+
+          const ringDist = (vDist - innerRadius) / (outerRadius - innerRadius);
+          totalWeight += FALLOFF.cubic(ringDist);
+        }
+      }
+    }
+    if (totalWeight < 1e-5) return;
+
+    for (let vz = vz0; vz <= vz1; vz++) {
+      for (let vy = vy0; vy <= vy1; vy++) {
+        for (let vx = vx0; vx <= vx1; vx++) {
+          const vDist = Math.sqrt((vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2);
+          if (vDist < innerRadius || vDist > outerRadius) continue;
+
+          const ringDist = (vDist - innerRadius) / (outerRadius - innerRadius);
+          const weight = FALLOFF.cubic(ringDist) / totalWeight;
+          const val = this.getVoxel(vx, vy, vz);
+          this.setVoxel(vx, vy, vz, val + delta * weight);
+        }
+      }
     }
   }
 
