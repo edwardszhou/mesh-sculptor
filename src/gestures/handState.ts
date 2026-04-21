@@ -1,13 +1,13 @@
 import type { Landmark } from "@mediapipe/tasks-vision";
 import type { Gesture } from "./gesture";
 import { handScale, LM } from "./landmarks";
-import type { HandResult } from "./mediapipe";
+import type { Handedness, HandResult } from "./mediapipe";
 import type { SculptScene } from "../render/scene";
 
 const SCENE_LANDMARKS_SCALE = 15;
-const SCENE_LANDMARKS_OFFSET_X = 0;
+const SCENE_LANDMARKS_OFFSET_X = 0.15;
 const SCENE_LANDMARKS_OFFSET_Y = -0.2;
-const SCENE_LANDMARKS_OFFSET_Z = 0.6;
+const SCENE_LANDMARKS_OFFSET_Z = 3;
 export class HandState {
   present: boolean;
   landmarks: Landmark[];
@@ -39,7 +39,7 @@ export class HandState {
     this.gesture = null;
   }
 
-  updateFromResult(result: HandResult | null, scene: SculptScene) {
+  updateFromResult(result: HandResult | null, handedness: Handedness, scene: SculptScene) {
     if (!result) {
       this.present = false;
       return;
@@ -50,13 +50,13 @@ export class HandState {
 
     this.transform.scale = handScale(result.landmarks);
 
-    const u = result.landmarks[LM.MIDDLE_MCP].x + SCENE_LANDMARKS_OFFSET_X;
+    const xOffsetFac = handedness === "left" ? 1 : -1;
+    const u = result.landmarks[LM.MIDDLE_MCP].x + SCENE_LANDMARKS_OFFSET_X * xOffsetFac;
     const v = result.landmarks[LM.MIDDLE_MCP].y + SCENE_LANDMARKS_OFFSET_Y;
     const { x: sceneX, y: sceneY } = scene.screenToWorld(u, v);
     this.transform.x = sceneX;
     this.transform.y = sceneY;
-    this.transform.z =
-      SCENE_LANDMARKS_SCALE * (SCENE_LANDMARKS_OFFSET_Z - Math.sqrt(this.transform.scale));
+    this.transform.z = 1 / this.transform.scale - SCENE_LANDMARKS_OFFSET_Z;
 
     this.relativeLandmarks = result.landmarks.map((lm) => ({
       x: lm.x / this.transform.scale,

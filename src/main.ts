@@ -14,7 +14,7 @@ const appConfig = {
   SHOW_WORLD_GRID: false,
   SHOW_VOXEL_GRID: false,
   SHOW_SCENE_STATS: true,
-  SHOW_MEDIAPIPE_CONNECTIONS: false,
+  SHOW_MEDIAPIPE_CONNECTIONS: true,
   SHOW_MEDIAPIPE_STATS: true,
   SHOW_HAND_MESH: true,
   MEDIAPIPE_FILTER: FILTERS.ONEEURO,
@@ -52,7 +52,7 @@ const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.2, 5);
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    voxelGrid.applyBrush(BrushSet.carve, indexPos.x, indexPos.y, indexPos.z);
+    // voxelGrid.applyBrush(BrushSet.carve, indexPos.x, indexPos.y, indexPos.z);
   }
 };
 pinchGesture.onStart = (_gesture, _hand, h) => {
@@ -63,7 +63,7 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  voxelGrid.applyBrush(BrushSet.stuff, indexPos.x, indexPos.y, indexPos.z);
+  voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
 };
 
 handsTracker.addGesture(pinchGesture);

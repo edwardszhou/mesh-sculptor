@@ -45,7 +45,7 @@ export class HandsTracker {
     for (const h of HANDEDNESSES) {
       const handResult = results[h];
       const handState = this[h];
-      handState.updateFromResult(handResult, scene);
+      handState.updateFromResult(handResult, h, scene);
 
       if (this.showMesh) {
         this.mesh.update(handState, h);

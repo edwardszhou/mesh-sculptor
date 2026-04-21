@@ -65,11 +65,11 @@ export const BrushSet: Record<string, Brush> = {
     falloff: FALLOFF.cubic,
     apply: ({ vx, vy, vz, getVal, weight, current, direction }) => {
       const [dvx, dvy, dvz] = direction;
-      const shift = weight * 0.5;
+      const shift = weight;
       const vxSample = vx + Math.round(-dvx * shift);
       const vySample = vy + Math.round(-dvy * shift);
       const vzSample = vz + Math.round(-dvz * shift);
-      return clamp(current - getVal(vxSample, vySample, vzSample), -1, 1);
+      return Math.min(current, getVal(vxSample, vySample, vzSample));
     }
   }
 };

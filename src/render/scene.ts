@@ -5,7 +5,7 @@ import Stats from "three/addons/libs/stats.module.js";
 const FOV = 75;
 const NEAR = 0.1;
 const FAR = 1000;
-const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 1, 4);
+const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 0, 4);
 const Z_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
 class SculptScene {
