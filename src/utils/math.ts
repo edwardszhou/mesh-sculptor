@@ -14,3 +14,9 @@ export const FALLOFF = {
 } as const;
 
 export type FalloffFn = (t: number) => number;
+
+export function wendlandRBF(r: number, h: number) {
+  const t = r / h;
+  if (t >= 1) return 0;
+  return (1 - t) ** 4 * (1 + 4 * t);
+}

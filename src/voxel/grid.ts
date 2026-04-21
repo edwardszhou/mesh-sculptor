@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Brush } from "./brush";
-import { clamp, FALLOFF } from "../utils/math";
+import { clamp, FALLOFF, wendlandRBF } from "../utils/math";
 
 export type SDF = (wx: number, wy: number, wz: number) => number;
 
@@ -121,9 +121,9 @@ class VoxelGrid {
 
   wToV(wx: number, wy: number, wz: number) {
     return [
-      Math.floor((wx + this.halfWorldSize) / this.voxelWorldSize),
-      Math.floor((wy + this.halfWorldSize) / this.voxelWorldSize),
-      Math.floor((wz + this.halfWorldSize) / this.voxelWorldSize)
+      clamp(Math.floor((wx + this.halfWorldSize) / this.voxelWorldSize), 0, this.voxelResolution),
+      clamp(Math.floor((wy + this.halfWorldSize) / this.voxelWorldSize), 0, this.voxelResolution),
+      clamp(Math.floor((wz + this.halfWorldSize) / this.voxelWorldSize), 0, this.voxelResolution)
     ];
   }
 
@@ -268,8 +268,7 @@ class VoxelGrid {
 
     const dyTemp = vx1 - vx0 + 1;
     const dzTemp = dyTemp * (vy1 - vy0 + 1);
-
-    const temp = new Float32Array(dyTemp * dzTemp);
+    const temp = new Float32Array(dzTemp * (vz1 - vz0 + 1));
     const tempIdx = (vx: number, vy: number, vz: number) => {
       vx = clamp(vx, vx0, vx1);
       vy = clamp(vy, vy0, vy1);
@@ -282,7 +281,7 @@ class VoxelGrid {
       for (let vy = vy0; vy <= vy1; vy++)
         for (let vx = vx0; vx <= vx1; vx++) temp[tempIdx(vx, vy, vz)] = this.getVoxel(vx, vy, vz);
 
-    const massBefore = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius);
+    const massBefore = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
 
     let changed = false;
     for (let vz = vz0; vz <= vz1; vz++) {
@@ -313,13 +312,13 @@ class VoxelGrid {
       }
     }
 
-    const massAfter = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius);
+    const massAfter = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
     const delta = massAfter - massBefore;
     this.applyVolumeCorrection(vxBrush, vyBrush, vzBrush, vRadius, vRadius * 2, delta);
 
-    const massCorrected = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius);
-    const delta2 = massCorrected - massAfter;
-    console.log(delta, delta2);
+    // const massCorrected = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
+    // const delta2 = massCorrected - massAfter;
+    // console.log(delta, delta2);
 
     if (changed) {
       const cx0 = Math.floor(vx0 / this.voxelsPerChunk);
@@ -351,7 +350,9 @@ class VoxelGrid {
         for (let vx = vx0; vx <= vx1; vx++) {
           const vDist2 = (vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2;
           if (vDist2 > radius2) continue;
-          mass += this.isosurface - this.getVoxel(vx, vy, vz);
+
+          const val = this.getVoxel(vx, vy, vz);
+          if (val < this.isosurface) mass += this.isosurface - val;
         }
       }
     }
@@ -367,6 +368,11 @@ class VoxelGrid {
     outerRadius: number,
     delta: number
   ) {
+    if (Math.abs(delta) < 1e-5) return;
+
+    const WENDLAND_RADIUS = 1;
+    const MIN_CAPACITY = 0.001;
+
     const vx0 = Math.max(0, vxc - outerRadius - 1);
     const vx1 = Math.min(this.voxelResolution - 1, vxc + outerRadius);
     const vy0 = Math.max(0, vyc - outerRadius - 1);
@@ -374,30 +380,43 @@ class VoxelGrid {
     const vz0 = Math.max(0, vzc - outerRadius - 1);
     const vz1 = Math.min(this.voxelResolution - 1, vzc + outerRadius);
 
+    const innerRadius2 = innerRadius ** 2;
+    const outerRadius2 = outerRadius ** 2;
+
     let totalWeight = 0;
     for (let vz = vz0; vz <= vz1; vz++) {
       for (let vy = vy0; vy <= vy1; vy++) {
         for (let vx = vx0; vx <= vx1; vx++) {
-          const vDist = Math.sqrt((vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2);
-          if (vDist < innerRadius || vDist > outerRadius) continue;
+          const dist2 = (vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2;
+          if (dist2 < innerRadius2 || dist2 > outerRadius2) continue;
 
-          const ringDist = (vDist - innerRadius) / (outerRadius - innerRadius);
-          totalWeight += FALLOFF.cubic(ringDist);
+          const val = this.getVoxel(vx, vy, vz);
+          const capacity = wendlandRBF(val - this.isosurface, WENDLAND_RADIUS);
+          if (val < this.isosurface && capacity < MIN_CAPACITY) continue;
+
+          const dist = Math.sqrt(dist2);
+          totalWeight += capacity * FALLOFF.cubic(dist / outerRadius);
         }
       }
     }
-    if (totalWeight < 1e-5) return;
+
+    if (totalWeight < 1e-7) return;
+
+    const scale = delta / totalWeight;
 
     for (let vz = vz0; vz <= vz1; vz++) {
       for (let vy = vy0; vy <= vy1; vy++) {
         for (let vx = vx0; vx <= vx1; vx++) {
-          const vDist = Math.sqrt((vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2);
-          if (vDist < innerRadius || vDist > outerRadius) continue;
+          const dist2 = (vx - vxc) ** 2 + (vy - vyc) ** 2 + (vz - vzc) ** 2;
+          if (dist2 < innerRadius2 || dist2 > outerRadius2) continue;
 
-          const ringDist = (vDist - innerRadius) / (outerRadius - innerRadius);
-          const weight = FALLOFF.cubic(ringDist) / totalWeight;
           const val = this.getVoxel(vx, vy, vz);
-          this.setVoxel(vx, vy, vz, val + delta * weight);
+          const capacity = wendlandRBF(val - this.isosurface, WENDLAND_RADIUS);
+          if (val < this.isosurface && capacity < MIN_CAPACITY) continue;
+
+          const dist = Math.sqrt(dist2);
+          const weight = capacity * FALLOFF.cubic(dist / outerRadius);
+          this.setVoxel(vx, vy, vz, clamp(val + weight * scale, -1, 1));
         }
       }
     }
