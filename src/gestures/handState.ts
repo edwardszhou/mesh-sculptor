@@ -1,13 +1,15 @@
 import type { Landmark } from "@mediapipe/tasks-vision";
 import type { Gesture } from "./gesture";
 import {
-  handScale,
   LM,
   LM_FINGERS,
   LM_FINGERTIPS,
   lmAngle,
+  lmCross,
   lmDistance,
-  lmDistance2D
+  lmMag,
+  lmNormalize,
+  lmSub
 } from "./landmarks";
 import type { Handedness, HandResult } from "./mediapipe";
 import type { SculptScene } from "../render/scene";
@@ -21,7 +23,8 @@ type HandMetrics = {
   pinchDistance: number[];
   curlDistance: number[];
   curlAngle: number[];
-  scale: number;
+  palmNormal: [number, number, number];
+  fingerNormal: [number, number, number];
 };
 
 export class HandState {
@@ -34,6 +37,7 @@ export class HandState {
     x: number;
     y: number;
     z: number;
+    scale: number;
   };
   metrics: HandMetrics;
   gesture: Gesture | null;
@@ -48,13 +52,15 @@ export class HandState {
     this.transform = {
       x: 0,
       y: 0,
-      z: 0
+      z: 0,
+      scale: 1
     };
     this.metrics = {
       pinchDistance: [],
       curlDistance: [],
       curlAngle: [],
-      scale: 1
+      palmNormal: [0, 0, 0],
+      fingerNormal: [0, 0, 0]
     };
 
     this.gesture = null;
@@ -69,7 +75,7 @@ export class HandState {
     this.landmarks = result.landmarks;
     this.worldLandmarks = result.worldLandmarks;
 
-    this.metrics.scale = handScale(result.landmarks);
+    this.transform.scale = this.updateHandScale(result.landmarks);
 
     const xOffsetFac = handedness === "left" ? 1 : -1;
     const u = result.landmarks[LM.MIDDLE_MCP].x + SCENE_LANDMARKS_OFFSET_X * xOffsetFac;
@@ -77,12 +83,12 @@ export class HandState {
     const { x: sceneX, y: sceneY } = scene.screenToWorld(u, v);
     this.transform.x = sceneX;
     this.transform.y = sceneY;
-    this.transform.z = 1 / this.metrics.scale - SCENE_LANDMARKS_OFFSET_Z;
+    this.transform.z = 1 / this.transform.scale - SCENE_LANDMARKS_OFFSET_Z;
 
     this.relativeLandmarks = result.landmarks.map((lm) => ({
-      x: lm.x / this.metrics.scale,
-      y: lm.y / this.metrics.scale,
-      z: lm.z / this.metrics.scale,
+      x: lm.x / this.transform.scale,
+      y: lm.y / this.transform.scale,
+      z: lm.z / this.transform.scale,
       visibility: lm.visibility
     }));
     this.sceneLandmarks = result.worldLandmarks.map((lm) => ({
@@ -113,5 +119,36 @@ export class HandState {
         this.worldLandmarks[fingerLms[3]]
       );
     });
+
+    const palmVecA = lmSub(this.worldLandmarks[LM.INDEX_MCP], this.worldLandmarks[LM.WRIST]);
+    const palmVecB = lmSub(this.worldLandmarks[LM.PINKY_MCP], this.worldLandmarks[LM.WRIST]);
+    const palmNormal = lmCross(palmVecA, palmVecB);
+    const palmNormalMag = lmMag(palmNormal);
+    this.metrics.palmNormal = [
+      palmNormal.x / palmNormalMag,
+      palmNormal.y / palmNormalMag,
+      palmNormal.z / palmNormalMag
+    ];
+
+    const fingerVecA = lmSub(this.worldLandmarks[LM.INDEX_TIP], this.worldLandmarks[LM.INDEX_MCP]);
+    const fingerVecB = lmSub(this.worldLandmarks[LM.PINKY_MCP], this.worldLandmarks[LM.INDEX_MCP]);
+    const fingerNormal = lmCross(fingerVecA, fingerVecB);
+    const fingerNormalMag = lmMag(fingerNormal);
+    this.metrics.fingerNormal = [
+      fingerNormal.x / fingerNormalMag,
+      fingerNormal.y / fingerNormalMag,
+      fingerNormal.z / fingerNormalMag
+    ];
+  }
+
+  updateHandScale(landmarks: Landmark[]) {
+    // Get hand scale in 3D space based on palm size from landmarks
+    const palmWidth = lmDistance(landmarks, LM.INDEX_MCP, LM.PINKY_MCP);
+    const palmLength = lmDistance(landmarks, LM.WRIST, LM.MIDDLE_MCP);
+
+    // When palm is facing camera (both width and length are maximized), length = RATIO * width.
+    const PALM_RATIO = 1.58;
+    // Correct for this factor
+    return Math.max(palmWidth * PALM_RATIO, palmLength, 0.01);
   }
 }

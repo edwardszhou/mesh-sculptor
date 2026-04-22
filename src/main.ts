@@ -9,6 +9,7 @@ import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
 import { HandGesture, PinchGesture } from "./gestures/gesture";
 import { BrushSet } from "./voxel/brush";
+import { dot } from "./utils/math";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
@@ -53,14 +54,23 @@ const flatGesture = new HandGesture("flat", (hand) => {
   const angles = hand.metrics.curlAngle;
   const minCurlAngle = Math.min(...angles);
   const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
-  return minCurlAngle > 130 && avgCurlAngle > 150;
+  const dotPlanes = dot(hand.metrics.palmNormal, hand.metrics.fingerNormal);
+  return (
+    minCurlAngle > 130 && avgCurlAngle > 140 && avgCurlAngle - minCurlAngle < 15 && dotPlanes > 0.75
+  );
 });
 
 const clawGesture = new HandGesture("claw", (hand) => {
   const angles = hand.metrics.curlAngle;
   const maxCurlAngle = Math.max(...angles);
   const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
-  return maxCurlAngle > 110 && maxCurlAngle < 160 && avgCurlAngle > 100 && avgCurlAngle < 150;
+  return (
+    maxCurlAngle > 110 &&
+    maxCurlAngle < 160 &&
+    avgCurlAngle > 100 &&
+    avgCurlAngle < 140 &&
+    maxCurlAngle - avgCurlAngle < 25
+  );
 });
 
 pinchGesture.onUpdate = (gesture, hand, h) => {
@@ -79,8 +89,8 @@ pinchGesture.onEnd = (_gesture, _hand, h) => {
 };
 pinchGesture.onActive = (_gesture, hand, _h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  voxelGrid.applyBrush(BrushSet.stuff, indexPos.x, indexPos.y, indexPos.z);
-  // voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
+  // voxelGrid.applyBrush(BrushSet.stuff, indexPos.x, indexPos.y, indexPos.z);
+  voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
 };
 
 handsTracker.addGesture(pinchGesture);

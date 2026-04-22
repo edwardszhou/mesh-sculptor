@@ -56,17 +56,6 @@ export const FINGERS = {
 
 export type Finger = (typeof FINGERS)[keyof typeof FINGERS];
 
-export function handScale(landmarks: Landmark[]) {
-  // Get hand scale in 3D space based on palm size from landmarks
-  const palmWidth = lmDistance(landmarks, LM.INDEX_MCP, LM.PINKY_MCP);
-  const palmLength = lmDistance(landmarks, LM.WRIST, LM.MIDDLE_MCP);
-
-  // When palm is facing camera (both width and length are maximized), length = RATIO * width.
-  const PALM_RATIO = 1.58;
-  // Correct for this factor
-  return Math.max(palmWidth * PALM_RATIO, palmLength, 0.01);
-}
-
 export function lmDistance(landmarks: Landmark[], a: LM, b: LM) {
   const dx = landmarks[a].x - landmarks[b].x;
   const dy = landmarks[a].y - landmarks[b].y;
@@ -102,19 +91,31 @@ export function lmAverage(landmarks: Landmark[], indices?: LM[]): Landmark {
       );
 }
 
-export function lmAdd(a: Landmark, b: Landmark) {
+export function lmAdd(a: Landmark, b: Landmark): Landmark {
   return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z, visibility: a.visibility || b.visibility };
 }
-export function lmSub(a: Landmark, b: Landmark) {
+export function lmSub(a: Landmark, b: Landmark): Landmark {
   return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z, visibility: a.visibility || b.visibility };
 }
-export function lmDot(a: Landmark, b: Landmark) {
+export function lmDot(a: Landmark, b: Landmark): number {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
-export function lmMag(a: Landmark) {
+export function lmCross(a: Landmark, b: Landmark): Landmark {
+  return {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+    visibility: a.visibility || b.visibility
+  };
+}
+export function lmMag(a: Landmark): number {
   return Math.sqrt(lmDot(a, a));
 }
-export function lmAngle(a: Landmark, b: Landmark, c: Landmark) {
+export function lmNormalize(a: Landmark): Landmark {
+  const mag = lmMag(a);
+  return { x: a.x / mag, y: a.y / mag, z: a.z / mag, visibility: a.visibility };
+}
+export function lmAngle(a: Landmark, b: Landmark, c: Landmark): number {
   const BA = lmSub(a, b);
   const BC = lmSub(c, b);
   const cosAngle = lmDot(BA, BC) / (lmMag(BA) * lmMag(BC));

@@ -20,3 +20,7 @@ export function wendlandRBF(r: number, h: number) {
   if (t >= 1) return 0;
   return (1 - t) ** 4 * (1 + 4 * t);
 }
+
+export function dot(a: [number, number, number], b: [number, number, number]) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
