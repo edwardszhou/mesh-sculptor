@@ -7,7 +7,7 @@ import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
-import { PinchGesture } from "./gestures/gesture";
+import { HandGesture, PinchGesture } from "./gestures/gesture";
 import { BrushSet } from "./voxel/brush";
 
 const appConfig = {
@@ -48,7 +48,21 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const pinchGesture = new PinchGesture("indexPinch", FINGERS.INDEX, 0.17, 5);
+const pinchGesture = new PinchGesture("indexPinch", FINGERS.INDEX, 0.2, 3);
+const flatGesture = new HandGesture("flat", (hand) => {
+  const angles = hand.metrics.curlAngle;
+  const minCurlAngle = Math.min(...angles);
+  const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
+  return minCurlAngle > 130 && avgCurlAngle > 150;
+});
+
+const clawGesture = new HandGesture("claw", (hand) => {
+  const angles = hand.metrics.curlAngle;
+  const maxCurlAngle = Math.max(...angles);
+  const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
+  return maxCurlAngle > 110 && maxCurlAngle < 160 && avgCurlAngle > 100 && avgCurlAngle < 150;
+});
+
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
@@ -70,6 +84,8 @@ pinchGesture.onActive = (_gesture, hand, _h) => {
 };
 
 handsTracker.addGesture(pinchGesture);
+handsTracker.addGesture(flatGesture);
+handsTracker.addGesture(clawGesture);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
@@ -90,6 +106,8 @@ scene.animate = async () => {
   voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
   // logPerformance(() => {
+  console.log(handsTracker.right.gesture?.id);
+  console.log(handsTracker.left.gesture?.id);
   marchingCubes.triangulateDirty();
   // }, "Time for global triangulation: ");
 };

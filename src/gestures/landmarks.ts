@@ -26,17 +26,23 @@ export const LM = {
 
 export type LM = (typeof LM)[keyof typeof LM];
 
-export const LM_FINGERS = [
+export const LM_FINGERS_ALL = [
   [LM.THUMB_CMC, LM.THUMB_MCP, LM.THUMB_IP, LM.THUMB_TIP],
   [LM.INDEX_MCP, LM.INDEX_PIP, LM.INDEX_DIP, LM.INDEX_TIP],
   [LM.MIDDLE_MCP, LM.MIDDLE_PIP, LM.MIDDLE_DIP, LM.MIDDLE_TIP],
   [LM.RING_MCP, LM.RING_PIP, LM.RING_DIP, LM.RING_TIP],
   [LM.PINKY_MCP, LM.PINKY_PIP, LM.PINKY_DIP, LM.PINKY_TIP]
 ] as const;
+export const LM_FINGERS = [
+  LM_FINGERS_ALL[1],
+  LM_FINGERS_ALL[2],
+  LM_FINGERS_ALL[3],
+  LM_FINGERS_ALL[4]
+] as const;
 
-export const LM_MCPS = LM_FINGERS.map((f) => f[0]) as readonly LM[];
-export const LM_TIPS = LM_FINGERS.map((f) => f[3]) as readonly LM[];
-export const LM_FINGERTIPS = LM_FINGERS.slice(1).map((f) => f[3]) as readonly LM[];
+export const LM_MCPS = LM_FINGERS_ALL.map((f) => f[0]) as readonly LM[];
+export const LM_TIPS = LM_FINGERS_ALL.map((f) => f[3]) as readonly LM[];
+export const LM_FINGERTIPS = LM_FINGERS.map((f) => f[3]) as readonly LM[];
 
 export const NUM_LMS = Object.values(LM).length;
 

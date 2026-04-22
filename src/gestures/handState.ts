@@ -99,7 +99,7 @@ export class HandState {
     if (!this.present) return;
 
     this.metrics.pinchDistance = LM_FINGERTIPS.map((lm) =>
-      lmDistance2D(this.relativeLandmarks, lm, LM.THUMB_TIP)
+      lmDistance(this.relativeLandmarks, lm, LM.THUMB_TIP)
     );
     this.metrics.curlDistance = LM_FINGERS.map((fingerLms) => {
       const curlLength = lmDistance(this.worldLandmarks, fingerLms[3], fingerLms[0]);
@@ -110,7 +110,7 @@ export class HandState {
       return lmAngle(
         this.worldLandmarks[fingerLms[0]],
         this.worldLandmarks[fingerLms[1]],
-        this.worldLandmarks[fingerLms[2]]
+        this.worldLandmarks[fingerLms[3]]
       );
     });
   }
