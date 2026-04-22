@@ -1,6 +1,6 @@
 import { clamp } from "../utils/math";
 import type { Handedness, Hands } from "./mediapipe";
-import { LM, LM_TIPS, lmAverage, type Finger } from "./landmarks";
+import { LM, LM_TIPS, handLmAverage, type Finger } from "./landmarks";
 import type { HandState } from "./handState";
 
 export type Gesture = HandGesture | MotionGesture;
@@ -174,7 +174,7 @@ export class PinchGesture extends HandGesture {
   }
 
   updateState(hand: HandState, h: Handedness) {
-    const newState = lmAverage(hand.sceneLandmarks, [LM.THUMB_TIP, LM_TIPS[this.finger]]);
+    const newState = handLmAverage(hand.sceneLandmarks, [LM.THUMB_TIP, LM_TIPS[this.finger]]);
     this.state[h] = { ...this.state[h], ...newState };
   }
 

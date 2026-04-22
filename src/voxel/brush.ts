@@ -37,7 +37,7 @@ export class Brush {
 
 export const BrushSet: Record<string, Brush> = {
   noop: new Brush(0.2, 0, FALLOFF.constant, (_self, { current }) => current),
-  indent: new Brush(0.2, 0.2, FALLOFF.cubic, (_self, { current, weight }) =>
+  indent: new Brush(0.15, 0.2, FALLOFF.cubic, (_self, { current, weight }) =>
     clamp(current + weight, -1, 1)
   ),
   stuff: new Brush(0.2, 0.2, FALLOFF.cubic, (self, { current, weight }) => {
@@ -56,8 +56,7 @@ export const BrushSet: Record<string, Brush> = {
       6;
     return current + weight * (avg - current);
   }),
-  pinch: new Brush(0.2, 0.2, FALLOFF.cubic, (self, { current, weight }) => {
-    const factor = 1 / self.state.delta;
-    return clamp(current - weight * factor, -1, 1);
+  pinch: new Brush(0.2, 0.2, FALLOFF.cosine, (self, { current, weight }) => {
+    return clamp(current - weight * self.state.factor, -1, 1);
   })
 };

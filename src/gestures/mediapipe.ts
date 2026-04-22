@@ -2,7 +2,7 @@ import {
   HandLandmarker,
   DrawingUtils,
   type HandLandmarkerResult,
-  type Landmark,
+  type Landmark as MPLandmark,
   FilesetResolver
 } from "@mediapipe/tasks-vision";
 import {
@@ -13,9 +13,8 @@ import {
   oneEuroParams,
   type Filter
 } from "../utils/filter";
-import { NUM_LMS } from "./landmarks";
+import { NUM_LMS, type Landmark } from "./landmarks";
 import Stats from "three/addons/libs/stats.module.js";
-import type { Scene } from "three";
 
 export type Handedness = "left" | "right";
 
@@ -223,12 +222,11 @@ class Mediapipe {
     const newZ = lm.z;
 
     return this.filters === null
-      ? { x: newX, y: newY, z: newZ, visibility: lm.visibility }
+      ? { x: newX, y: newY, z: newZ }
       : {
           x: this.filters[h][i].x.filter(newX, timestamp),
           y: this.filters[h][i].y.filter(newY, timestamp),
-          z: this.filters[h][i].z.filter(newZ, timestamp),
-          visibility: lm.visibility
+          z: this.filters[h][i].z.filter(newZ, timestamp)
         };
   }
 
@@ -243,12 +241,11 @@ class Mediapipe {
     const newZ = lm.z;
 
     return this.filters === null
-      ? { x: newX, y: newY, z: newZ, visibility: lm.visibility }
+      ? { x: newX, y: newY, z: newZ }
       : {
           x: this.filters[h][i].worldX.filter(newX, timestamp),
           y: this.filters[h][i].worldY.filter(newY, timestamp),
-          z: this.filters[h][i].worldZ.filter(newZ, timestamp),
-          visibility: lm.visibility
+          z: this.filters[h][i].worldZ.filter(newZ, timestamp)
         };
   }
 
@@ -259,10 +256,14 @@ class Mediapipe {
     for (const hand of Object.values(this.results)) {
       if (!hand) continue;
 
-      this.drawUtils.drawConnectors(hand.landmarks, HandLandmarker.HAND_CONNECTIONS, {
-        color: "#FFFFFF",
-        lineWidth: 2
-      });
+      this.drawUtils.drawConnectors(
+        hand.landmarks as MPLandmark[],
+        HandLandmarker.HAND_CONNECTIONS,
+        {
+          color: "#FFFFFF",
+          lineWidth: 2
+        }
+      );
       // this.drawUtils.drawLandmarks(hand.landmarks, {
       //   color: "#FFFFFF",
       //   lineWidth: 2

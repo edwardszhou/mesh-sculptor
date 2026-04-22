@@ -111,15 +111,15 @@ class VoxelGrid {
     this.updateMesh();
   }
 
-  vToW(vx: number, vy: number, vz: number) {
-    return new THREE.Vector3(
+  vToW(vx: number, vy: number, vz: number): V3 {
+    return [
       vx * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2,
       vy * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2,
       vz * this.voxelWorldSize - this.halfWorldSize + this.voxelWorldSize / 2
-    );
+    ];
   }
 
-  wToV(wx: number, wy: number, wz: number) {
+  wToV(wx: number, wy: number, wz: number): V3 {
     return [
       clamp(Math.floor((wx + this.halfWorldSize) / this.voxelWorldSize), 0, this.voxelResolution),
       clamp(Math.floor((wy + this.halfWorldSize) / this.voxelWorldSize), 0, this.voxelResolution),

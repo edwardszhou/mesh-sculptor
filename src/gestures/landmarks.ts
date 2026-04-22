@@ -1,5 +1,8 @@
-import type { Landmark } from "@mediapipe/tasks-vision";
-
+export type Landmark = {
+  x: number;
+  y: number;
+  z: number;
+};
 export const LM = {
   WRIST: 0,
   THUMB_CMC: 1,
@@ -56,46 +59,44 @@ export const FINGERS = {
 
 export type Finger = (typeof FINGERS)[keyof typeof FINGERS];
 
-export function lmDistance(landmarks: Landmark[], a: LM, b: LM) {
+export function handLmDistance(landmarks: Landmark[], a: LM, b: LM) {
   const dx = landmarks[a].x - landmarks[b].x;
   const dy = landmarks[a].y - landmarks[b].y;
   const dz = landmarks[a].z - landmarks[b].z;
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-export function lmDistance2D(landmarks: Landmark[], a: LM, b: LM) {
+export function handLmDistance2D(landmarks: Landmark[], a: LM, b: LM) {
   const dx = landmarks[a].x - landmarks[b].x;
   const dy = landmarks[a].y - landmarks[b].y;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-export function lmAverage(landmarks: Landmark[], indices?: LM[]): Landmark {
+export function handLmAverage(landmarks: Landmark[], indices?: LM[]): Landmark {
   return indices
     ? indices.reduce(
         (acc, i) => ({
           x: acc.x + landmarks[i].x / indices.length,
           y: acc.y + landmarks[i].y / indices.length,
-          z: acc.z + landmarks[i].z / indices.length,
-          visibility: acc.visibility
+          z: acc.z + landmarks[i].z / indices.length
         }),
-        { x: 0, y: 0, z: 0, visibility: 1 }
+        { x: 0, y: 0, z: 0 }
       )
     : landmarks.reduce(
         (acc, lm) => ({
           x: acc.x + lm.x / landmarks.length,
           y: acc.y + lm.y / landmarks.length,
-          z: acc.z + lm.z / landmarks.length,
-          visibility: acc.visibility
+          z: acc.z + lm.z / landmarks.length
         }),
-        { x: 0, y: 0, z: 0, visibility: 1 }
+        { x: 0, y: 0, z: 0 }
       );
 }
 
 export function lmAdd(a: Landmark, b: Landmark): Landmark {
-  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z, visibility: a.visibility || b.visibility };
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
 }
 export function lmSub(a: Landmark, b: Landmark): Landmark {
-  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z, visibility: a.visibility || b.visibility };
+  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
 }
 export function lmDot(a: Landmark, b: Landmark): number {
   return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -104,8 +105,7 @@ export function lmCross(a: Landmark, b: Landmark): Landmark {
   return {
     x: a.y * b.z - a.z * b.y,
     y: a.z * b.x - a.x * b.z,
-    z: a.x * b.y - a.y * b.x,
-    visibility: a.visibility || b.visibility
+    z: a.x * b.y - a.y * b.x
   };
 }
 export function lmMag(a: Landmark): number {
@@ -113,7 +113,10 @@ export function lmMag(a: Landmark): number {
 }
 export function lmNormalize(a: Landmark): Landmark {
   const mag = lmMag(a);
-  return { x: a.x / mag, y: a.y / mag, z: a.z / mag, visibility: a.visibility };
+  return { x: a.x / mag, y: a.y / mag, z: a.z / mag };
+}
+export function lmDistance(a: Landmark, b: Landmark) {
+  return lmMag(lmSub(a, b));
 }
 export function lmAngle(a: Landmark, b: Landmark, c: Landmark): number {
   const BA = lmSub(a, b);

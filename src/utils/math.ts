@@ -34,3 +34,15 @@ export function add(a: V3, b: V3): V3 {
 export function mag(a: V3): number {
   return Math.sqrt(dot(a, a));
 }
+
+export function remap(
+  t: number,
+  minA: number,
+  maxA: number,
+  minB: number,
+  maxB: number,
+  clampRange = true
+) {
+  const res = minB + ((t - minA) / (maxA - minA)) * (maxB - minB);
+  return clampRange ? clamp(res, minB, maxB) : res;
+}

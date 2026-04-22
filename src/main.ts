@@ -6,10 +6,10 @@ import { MarchingCubes } from "./mesh/marchingCubes";
 import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
-import { FINGERS, LM } from "./gestures/landmarks";
+import { FINGERS, LM, lmDistance, lmMag, lmSub } from "./gestures/landmarks";
 import { HandGesture, PinchGesture } from "./gestures/gesture";
 import { BrushSet } from "./voxel/brush";
-import { clamp, dot } from "./utils/math";
+import { clamp, dot, remap } from "./utils/math";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
@@ -85,23 +85,32 @@ pinchGesture.onUpdate = (gesture, hand, h) => {
 pinchGesture.onStart = (gesture, hand, h) => {
   handsTracker.mesh.setColors(new THREE.Color(0xff0000), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  gesture.state[h].anchor = { x: indexPos.x, y: indexPos.y, z: indexPos.z };
+
+  const vRadius = Math.ceil(BrushSet.pinch.radius / voxelGrid.voxelWorldSize);
+  const [vx, vy, vz] = voxelGrid.wToV(indexPos.x, indexPos.y, indexPos.z);
+  const startMass = voxelGrid.calculateMass(vx, vy, vz, vRadius);
+
+  gesture.state[h].lastPos = { ...indexPos };
+  gesture.state[h].remainingMass = startMass;
+  gesture.state[h].totalMass = startMass;
 };
 pinchGesture.onEnd = (_gesture, _hand, h) => {
   handsTracker.mesh.setColors(new THREE.Color(0xffffff), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
 };
 pinchGesture.onActive = (gesture, hand, h) => {
+  const state = gesture.state[h];
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
 
-  const anchor = gesture.state[h].anchor;
-  const delta =
-    (indexPos.x - anchor.x) ** 2 + (indexPos.y - anchor.y) ** 2 + (indexPos.z - anchor.z) ** 2;
+  if (!state.totalMass || !state.remainingMass) return;
 
-  console.log(clamp(1 - delta ** 0.5, 0, 1));
-  BrushSet.pinch.state.delta = delta;
+  const delta = lmDistance(indexPos, state.lastPos);
+  state.lastPos = { x: indexPos.x, y: indexPos.y, z: indexPos.z };
+  const massFactor = remap(delta, 0.005, 0.05, 0, 1);
+  state.remainingMass *= 1 - 0.15 * massFactor;
+  if (state.remainingMass < 0.1) state.remainingMass = 0;
 
+  BrushSet.pinch.state.factor = state.remainingMass / state.totalMass;
   voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
-  // voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
 };
 
 handsTracker.addGesture(pinchGesture, 2);
@@ -127,7 +136,7 @@ scene.animate = async () => {
 
   voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
-  console.log(handsTracker.right.gesture?.id);
-  console.log(handsTracker.left.gesture?.id);
+  // console.log(handsTracker.right.gesture?.id);
+  // console.log(handsTracker.left.gesture?.id);
   marchingCubes.triangulateDirty();
 };
