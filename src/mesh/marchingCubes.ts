@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { VoxelGrid, type VoxelChunk } from "../voxel/grid";
-import { lerp } from "../utils/math";
+import { lerp, type V3 } from "../utils/math";
 
 class MarchingCubes {
   readonly geometry: THREE.BufferGeometry;
@@ -18,12 +18,8 @@ class MarchingCubes {
   private colorArray: Float32Array;
   private vertexCount: number;
 
-  private readonly edgeAxisOffsets: [number, number, number];
-  private readonly edgeAxes: [
-    [number, number, number],
-    [number, number, number],
-    [number, number, number]
-  ];
+  private readonly edgeAxisOffsets: V3;
+  private readonly edgeAxes: [V3, V3, V3];
 
   private tempPos: Float32Array;
   private tempNor: Float32Array;

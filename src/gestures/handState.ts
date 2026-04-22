@@ -8,11 +8,11 @@ import {
   lmCross,
   lmDistance,
   lmMag,
-  lmNormalize,
   lmSub
 } from "./landmarks";
 import type { Handedness, HandResult } from "./mediapipe";
 import type { SculptScene } from "../render/scene";
+import type { V3 } from "../utils/math";
 
 const SCENE_LANDMARKS_SCALE = 15;
 const SCENE_LANDMARKS_OFFSET_X = 0.15;
@@ -23,8 +23,8 @@ type HandMetrics = {
   pinchDistance: number[];
   curlDistance: number[];
   curlAngle: number[];
-  palmNormal: [number, number, number];
-  fingerNormal: [number, number, number];
+  palmNormal: V3;
+  fingerNormal: V3;
 };
 
 export class HandState {

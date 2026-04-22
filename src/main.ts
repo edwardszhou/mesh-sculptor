@@ -9,7 +9,7 @@ import { SculptScene } from "./render/scene";
 import { FINGERS, LM } from "./gestures/landmarks";
 import { HandGesture, PinchGesture } from "./gestures/gesture";
 import { BrushSet } from "./voxel/brush";
-import { dot } from "./utils/math";
+import { clamp, dot } from "./utils/math";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
@@ -67,7 +67,6 @@ const clawGesture = new HandGesture(
     const maxCurlAngle = Math.max(...angles);
     const minCurlAngle = Math.min(...angles);
     const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
-    console.log(maxCurlAngle - minCurlAngle, maxCurlAngle, avgCurlAngle);
     return avgCurlAngle > 100 && avgCurlAngle < 140 && maxCurlAngle - minCurlAngle < 30;
   },
   8
@@ -76,24 +75,36 @@ const clawGesture = new HandGesture(
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+    const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
     // voxelGrid.applyBrush(BrushSet.noop, indexPos.x, indexPos.y, indexPos.z);
-    voxelGrid.applyBrush(BrushSet.carve, indexPos.x, indexPos.y, indexPos.z);
+    voxelGrid.applyBrush(BrushSet.indent, indexPos.x, indexPos.y, indexPos.z);
+    voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
     // voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
   }
 };
-pinchGesture.onStart = (_gesture, _hand, h) => {
+pinchGesture.onStart = (gesture, hand, h) => {
   handsTracker.mesh.setColors(new THREE.Color(0xff0000), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
+  const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+  gesture.state[h].anchor = { x: indexPos.x, y: indexPos.y, z: indexPos.z };
 };
 pinchGesture.onEnd = (_gesture, _hand, h) => {
   handsTracker.mesh.setColors(new THREE.Color(0xffffff), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
 };
-pinchGesture.onActive = (_gesture, hand, _h) => {
+pinchGesture.onActive = (gesture, hand, h) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  // voxelGrid.applyBrush(BrushSet.stuff, indexPos.x, indexPos.y, indexPos.z);
-  voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
+
+  const anchor = gesture.state[h].anchor;
+  const delta =
+    (indexPos.x - anchor.x) ** 2 + (indexPos.y - anchor.y) ** 2 + (indexPos.z - anchor.z) ** 2;
+
+  console.log(clamp(1 - delta ** 0.5, 0, 1));
+  BrushSet.pinch.state.delta = delta;
+
+  voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
+  // voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
 };
 
-handsTracker.addGesture(pinchGesture);
+handsTracker.addGesture(pinchGesture, 2);
 handsTracker.addGesture(clawGesture, 1);
 handsTracker.addGesture(flatGesture, 2);
 
@@ -116,9 +127,7 @@ scene.animate = async () => {
 
   voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
-  // logPerformance(() => {
   console.log(handsTracker.right.gesture?.id);
   console.log(handsTracker.left.gesture?.id);
   marchingCubes.triangulateDirty();
-  // }, "Time for global triangulation: ");
 };

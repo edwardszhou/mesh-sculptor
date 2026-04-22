@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import type { Brush } from "./brush";
-import { clamp, FALLOFF, wendlandRBF } from "../utils/math";
+import { clamp, FALLOFF, wendlandRBF, type V3 } from "../utils/math";
 
 export type SDF = (wx: number, wy: number, wz: number) => number;
 
 export type AABB = {
-  min: [number, number, number];
-  max: [number, number, number];
+  min: V3;
+  max: V3;
 };
 
 type VoxelChunk = {
@@ -295,14 +295,22 @@ class VoxelGrid {
           const dwy = wy - bwy;
           const dwz = wz - bwz;
 
-          const direction = [dwx, dwy, dwz] satisfies [number, number, number];
+          const direction = [dwx, dwy, dwz] satisfies V3;
 
           const normDist2 = dwx * dwx + dwy * dwy + dwz * dwz;
           if (normDist2 > bRadius2) continue;
 
           const weight = brush.falloff(Math.sqrt(normDist2) / brush.radius);
           const current = getTemp(vx, vy, vz);
-          const next = brush.apply({ vx, vy, vz, current, weight, direction, getVal: getTemp });
+          const next = brush.apply(brush, {
+            vx,
+            vy,
+            vz,
+            current,
+            weight,
+            direction,
+            getVal: getTemp
+          });
 
           if (next != undefined && next !== current) {
             this.setVoxel(vx, vy, vz, next);
@@ -335,7 +343,7 @@ class VoxelGrid {
     }
   }
 
-  private calculateMass(vxc: number, vyc: number, vzc: number, radius: number) {
+  calculateMass(vxc: number, vyc: number, vzc: number, radius: number) {
     const vx0 = Math.max(0, vxc - radius - 1);
     const vx1 = Math.min(this.voxelResolution - 1, vxc + radius);
     const vy0 = Math.max(0, vyc - radius - 1);
