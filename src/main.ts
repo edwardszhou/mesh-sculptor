@@ -49,7 +49,7 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const pinchGesture = new PinchGesture("indexPinch", FINGERS.INDEX, 0.2, 3);
+const pinchGesture = new PinchGesture("indexPinch", FINGERS.INDEX, 0.25, 5);
 const flatGesture = new HandGesture("flat", (hand) => {
   const angles = hand.metrics.curlAngle;
   const minCurlAngle = Math.min(...angles);
@@ -60,18 +60,18 @@ const flatGesture = new HandGesture("flat", (hand) => {
   );
 });
 
-const clawGesture = new HandGesture("claw", (hand) => {
-  const angles = hand.metrics.curlAngle;
-  const maxCurlAngle = Math.max(...angles);
-  const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
-  return (
-    maxCurlAngle > 110 &&
-    maxCurlAngle < 160 &&
-    avgCurlAngle > 100 &&
-    avgCurlAngle < 140 &&
-    maxCurlAngle - avgCurlAngle < 25
-  );
-});
+const clawGesture = new HandGesture(
+  "claw",
+  (hand) => {
+    const angles = hand.metrics.curlAngle;
+    const maxCurlAngle = Math.max(...angles);
+    const minCurlAngle = Math.min(...angles);
+    const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
+    console.log(maxCurlAngle - minCurlAngle, maxCurlAngle, avgCurlAngle);
+    return avgCurlAngle > 100 && avgCurlAngle < 140 && maxCurlAngle - minCurlAngle < 30;
+  },
+  8
+);
 
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
@@ -94,8 +94,8 @@ pinchGesture.onActive = (_gesture, hand, _h) => {
 };
 
 handsTracker.addGesture(pinchGesture);
-handsTracker.addGesture(flatGesture);
-handsTracker.addGesture(clawGesture);
+handsTracker.addGesture(clawGesture, 1);
+handsTracker.addGesture(flatGesture, 2);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
@@ -105,6 +105,7 @@ scene.add(handsTracker.mesh.points);
 scene.resize = () => {
   mediapipe.resize();
 };
+
 scene.animate = async () => {
   if (appConfig.MEDIAPIPE_WORKER) {
     await scene.waitForGPU();

@@ -17,7 +17,7 @@ import type { SculptScene } from "../render/scene";
 const SCENE_LANDMARKS_SCALE = 15;
 const SCENE_LANDMARKS_OFFSET_X = 0.15;
 const SCENE_LANDMARKS_OFFSET_Y = -0.2;
-const SCENE_LANDMARKS_OFFSET_Z = 2.5;
+const SCENE_LANDMARKS_OFFSET_Z = 3;
 
 type HandMetrics = {
   pinchDistance: number[];

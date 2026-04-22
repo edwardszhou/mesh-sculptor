@@ -26,7 +26,7 @@ export class HandsTracker {
     this.showMesh = showMesh;
   }
 
-  addGesture(gesture: Gesture, handedness?: Handedness, priority = 0) {
+  addGesture(gesture: Gesture, priority = 0, handedness?: Handedness) {
     if (gesture instanceof MotionGesture) priority = Infinity;
     this.gestures.push({ gesture, handedness, priority });
     this.gestures.sort((a, b) => b.priority - a.priority);
