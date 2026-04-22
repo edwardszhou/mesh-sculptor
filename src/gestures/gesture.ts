@@ -156,27 +156,25 @@ export class MotionGesture {
 }
 
 export class PinchGesture extends HandGesture {
-  fingers: Finger[];
+  finger: Finger;
 
   constructor(
     id: string,
-    fingers: Finger[],
+    finger: Finger,
     maxDistance: number,
     activationThreshold = 2,
     activeCooldown = 33
   ) {
     let detectPinch = (hand: HandState) => {
-      const distances = fingerDistances(hand, LM.THUMB_TIP, fingers);
-      return Math.max(...distances) < maxDistance;
+      return hand.metrics.pinchDistance[finger - 1] < maxDistance;
     };
 
     super(id, detectPinch, activationThreshold, activeCooldown);
-    this.fingers = fingers;
+    this.finger = finger;
   }
 
   updateState(hand: HandState, h: Handedness) {
-    const indices = this.fingers.map((f) => LM_TIPS[f]);
-    const newState = lmAverage(hand.sceneLandmarks, [LM.THUMB_TIP, ...indices]);
+    const newState = lmAverage(hand.sceneLandmarks, [LM.THUMB_TIP, LM_TIPS[this.finger]]);
     this.state[h] = { ...this.state[h], ...newState };
   }
 
@@ -199,11 +197,4 @@ export class PinchGesture extends HandGesture {
     this.updateState(hand, h);
     super._onUpdate(hand, h);
   }
-}
-
-export function fingerDistances(hand: HandState, reference: LM, fingers: Finger[]) {
-  if (!hand.landmarks.length) return Array(fingers.length).fill(-1);
-  return fingers.map(
-    (f) => lmDistance2D(hand.landmarks, reference, LM_TIPS[f]) / hand.transform.scale
-  );
 }

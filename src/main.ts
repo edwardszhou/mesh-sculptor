@@ -33,7 +33,7 @@ const mediapipe = await Mediapipe.create(
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
-const voxelGrid = new VoxelGrid(96, 8, 8, appConfig.SHOW_VOXEL_GRID);
+const voxelGrid = new VoxelGrid(96, 6, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere * 3;
@@ -48,7 +48,7 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const pinchGesture = new PinchGesture("indexPinch", [FINGERS.INDEX], 0.2, 5);
+const pinchGesture = new PinchGesture("indexPinch", FINGERS.INDEX, 0.17, 5);
 pinchGesture.onUpdate = (gesture, hand, h) => {
   if (!gesture.confidence[h]) {
     const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];

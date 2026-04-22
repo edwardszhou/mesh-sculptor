@@ -26,19 +26,17 @@ export const LM = {
 
 export type LM = (typeof LM)[keyof typeof LM];
 
-export const LM_FINGERS = {
-  THUMB: [LM.THUMB_CMC, LM.THUMB_MCP, LM.THUMB_IP, LM.THUMB_TIP],
-  INDEX: [LM.INDEX_MCP, LM.INDEX_PIP, LM.INDEX_DIP, LM.INDEX_TIP],
-  MIDDLE: [LM.MIDDLE_MCP, LM.MIDDLE_PIP, LM.MIDDLE_DIP, LM.MIDDLE_TIP],
-  RING: [LM.RING_MCP, LM.RING_PIP, LM.RING_DIP, LM.RING_TIP],
-  PINKY: [LM.PINKY_MCP, LM.PINKY_PIP, LM.PINKY_DIP, LM.PINKY_TIP]
-} as const satisfies Record<string, readonly LM[]>;
+export const LM_FINGERS = [
+  [LM.THUMB_CMC, LM.THUMB_MCP, LM.THUMB_IP, LM.THUMB_TIP],
+  [LM.INDEX_MCP, LM.INDEX_PIP, LM.INDEX_DIP, LM.INDEX_TIP],
+  [LM.MIDDLE_MCP, LM.MIDDLE_PIP, LM.MIDDLE_DIP, LM.MIDDLE_TIP],
+  [LM.RING_MCP, LM.RING_PIP, LM.RING_DIP, LM.RING_TIP],
+  [LM.PINKY_MCP, LM.PINKY_PIP, LM.PINKY_DIP, LM.PINKY_TIP]
+] as const;
 
-export const LM_MCPS = Object.values(LM_FINGERS).map((f) => f[0]) as readonly LM[];
-export const LM_TIPS = Object.values(LM_FINGERS).map((f) => f[3]) as readonly LM[];
-export const LM_FINGERTIPS = Object.values(LM_FINGERS)
-  .slice(1)
-  .map((f) => f[3]) as readonly LM[];
+export const LM_MCPS = LM_FINGERS.map((f) => f[0]) as readonly LM[];
+export const LM_TIPS = LM_FINGERS.map((f) => f[3]) as readonly LM[];
+export const LM_FINGERTIPS = LM_FINGERS.slice(1).map((f) => f[3]) as readonly LM[];
 
 export const NUM_LMS = Object.values(LM).length;
 
@@ -96,4 +94,23 @@ export function lmAverage(landmarks: Landmark[], indices?: LM[]): Landmark {
         }),
         { x: 0, y: 0, z: 0, visibility: 1 }
       );
+}
+
+export function lmAdd(a: Landmark, b: Landmark) {
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z, visibility: a.visibility || b.visibility };
+}
+export function lmSub(a: Landmark, b: Landmark) {
+  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z, visibility: a.visibility || b.visibility };
+}
+export function lmDot(a: Landmark, b: Landmark) {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+export function lmMag(a: Landmark) {
+  return Math.sqrt(lmDot(a, a));
+}
+export function lmAngle(a: Landmark, b: Landmark, c: Landmark) {
+  const BA = lmSub(a, b);
+  const BC = lmSub(c, b);
+  const cosAngle = lmDot(BA, BC) / (lmMag(BA) * lmMag(BC));
+  return (Math.acos(cosAngle) * 180) / Math.PI;
 }
