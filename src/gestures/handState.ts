@@ -4,15 +4,13 @@ import {
   LM_FINGERS,
   LM_FINGERTIPS,
   lmAngle,
-  lmCross,
   handLmDistance,
-  lmMag,
-  lmSub,
-  type Landmark
+  type Landmark,
+  lmToV3
 } from "./landmarks";
 import type { Handedness, HandResult } from "./mediapipe";
 import type { SculptScene } from "../render/scene";
-import type { V3 } from "../utils/math";
+import { cross, normalize, sub, type V3 } from "../utils/math";
 
 const SCENE_LANDMARKS_SCALE = 15;
 const SCENE_LANDMARKS_OFFSET_X = 0.15;
@@ -120,25 +118,27 @@ export class HandState {
       );
     });
 
-    const palmVecA = lmSub(this.worldLandmarks[LM.INDEX_MCP], this.worldLandmarks[LM.WRIST]);
-    const palmVecB = lmSub(this.worldLandmarks[LM.PINKY_MCP], this.worldLandmarks[LM.WRIST]);
-    const palmNormal = lmCross(palmVecA, palmVecB);
-    const palmNormalMag = lmMag(palmNormal);
-    this.metrics.palmNormal = [
-      palmNormal.x / palmNormalMag,
-      palmNormal.y / palmNormalMag,
-      palmNormal.z / palmNormalMag
-    ];
+    const palmVecA = sub(
+      lmToV3(this.worldLandmarks[LM.INDEX_MCP]),
+      lmToV3(this.worldLandmarks[LM.WRIST])
+    );
+    const palmVecB = sub(
+      lmToV3(this.worldLandmarks[LM.PINKY_MCP]),
+      lmToV3(this.worldLandmarks[LM.WRIST])
+    );
+    const palmNormal = cross(palmVecA, palmVecB);
+    this.metrics.palmNormal = normalize(palmNormal);
 
-    const fingerVecA = lmSub(this.worldLandmarks[LM.INDEX_TIP], this.worldLandmarks[LM.INDEX_MCP]);
-    const fingerVecB = lmSub(this.worldLandmarks[LM.PINKY_MCP], this.worldLandmarks[LM.INDEX_MCP]);
-    const fingerNormal = lmCross(fingerVecA, fingerVecB);
-    const fingerNormalMag = lmMag(fingerNormal);
-    this.metrics.fingerNormal = [
-      fingerNormal.x / fingerNormalMag,
-      fingerNormal.y / fingerNormalMag,
-      fingerNormal.z / fingerNormalMag
-    ];
+    const fingerVecA = sub(
+      lmToV3(this.worldLandmarks[LM.INDEX_TIP]),
+      lmToV3(this.worldLandmarks[LM.INDEX_MCP])
+    );
+    const fingerVecB = sub(
+      lmToV3(this.worldLandmarks[LM.PINKY_MCP]),
+      lmToV3(this.worldLandmarks[LM.INDEX_MCP])
+    );
+    const fingerNormal = cross(fingerVecA, fingerVecB);
+    this.metrics.fingerNormal = normalize(fingerNormal);
   }
 
   updateHandScale(landmarks: Landmark[]) {

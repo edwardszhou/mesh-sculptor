@@ -1,3 +1,5 @@
+import type { V3 } from "../utils/math";
+
 export type Landmark = {
   x: number;
   y: number;
@@ -92,35 +94,27 @@ export function handLmAverage(landmarks: Landmark[], indices?: LM[]): Landmark {
       );
 }
 
-export function lmAdd(a: Landmark, b: Landmark): Landmark {
-  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
-}
-export function lmSub(a: Landmark, b: Landmark): Landmark {
+function lmSub(a: Landmark, b: Landmark): Landmark {
   return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
 }
-export function lmDot(a: Landmark, b: Landmark): number {
+function lmDot(a: Landmark, b: Landmark): number {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
-export function lmCross(a: Landmark, b: Landmark): Landmark {
-  return {
-    x: a.y * b.z - a.z * b.y,
-    y: a.z * b.x - a.x * b.z,
-    z: a.x * b.y - a.y * b.x
-  };
-}
-export function lmMag(a: Landmark): number {
+function lmMag(a: Landmark): number {
   return Math.sqrt(lmDot(a, a));
 }
-export function lmNormalize(a: Landmark): Landmark {
-  const mag = lmMag(a);
-  return { x: a.x / mag, y: a.y / mag, z: a.z / mag };
-}
+
 export function lmDistance(a: Landmark, b: Landmark) {
-  return lmMag(lmSub(a, b));
+  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
 }
+
 export function lmAngle(a: Landmark, b: Landmark, c: Landmark): number {
   const BA = lmSub(a, b);
   const BC = lmSub(c, b);
   const cosAngle = lmDot(BA, BC) / (lmMag(BA) * lmMag(BC));
   return (Math.acos(cosAngle) * 180) / Math.PI;
+}
+
+export function lmToV3(a: Landmark): V3 {
+  return [a.x, a.y, a.z];
 }

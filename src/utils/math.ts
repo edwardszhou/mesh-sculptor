@@ -27,12 +27,37 @@ export function dot(a: V3, b: V3): number {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+export function cross(a: V3, b: V3): V3 {
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+}
+
 export function add(a: V3, b: V3): V3 {
   return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 }
 
+export function sub(a: V3, b: V3): V3 {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+export function mul(a: V3, c: number): V3 {
+  return [a[0] * c, a[1] * c, a[2] * c];
+}
+
 export function mag(a: V3): number {
   return Math.sqrt(dot(a, a));
+}
+
+export function normalize(a: V3): V3 {
+  const magA = mag(a);
+  return [a[0] / magA, a[1] / magA, a[2] / magA];
+}
+
+export function distance(a: V3, b: V3) {
+  return mag(sub(a, b));
+}
+
+export function average(a: V3, b: V3): V3 {
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 }
 
 export function remap(

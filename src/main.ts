@@ -6,10 +6,11 @@ import { MarchingCubes } from "./voxel/marchingCubes";
 import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
-import { FINGERS, LM, lmDistance } from "./gestures/landmarks";
-import { HandGesture, PinchGesture } from "./gestures/gesture";
-import { BrushSet } from "./voxel/brush";
-import { dot, remap } from "./utils/math";
+import { FINGERS, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
+import { HandGesture, HandGesturePair, PinchGesture } from "./gestures/gesture";
+import { Brush, BrushSet } from "./voxel/brush";
+import { average, distance, dot, normalize, remap, sub } from "./utils/math";
+import type { HandState } from "./gestures/handState";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
@@ -76,16 +77,6 @@ pinchGesture.onActive = (hand, state) => {
   voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
 };
 
-const flatGesture = new HandGesture("flat", (hand) => {
-  const angles = hand.metrics.curlAngle;
-  const minCurlAngle = Math.min(...angles);
-  const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
-  const dotPlanes = dot(hand.metrics.palmNormal, hand.metrics.fingerNormal);
-  return (
-    minCurlAngle > 130 && avgCurlAngle > 140 && avgCurlAngle - minCurlAngle < 15 && dotPlanes > 0.75
-  );
-});
-
 const clawGesture = new HandGesture(
   "claw",
   (hand) => {
@@ -122,10 +113,37 @@ swipeGesture.onActive = (hand) => {
   voxelGrid.applyBrush(BrushSet.smooth, middlePos.x, middlePos.y, middlePos.z);
 };
 
+const detectFlat = (hand: HandState) => {
+  const angles = hand.metrics.curlAngle;
+  const minCurlAngle = Math.min(...angles);
+  const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
+  const dotPlanes = dot(hand.metrics.palmNormal, hand.metrics.fingerNormal);
+  return (
+    minCurlAngle > 110 && avgCurlAngle > 120 && avgCurlAngle - minCurlAngle < 25 && dotPlanes > 0.66
+  );
+};
+
+const squishGesture = new HandGesturePair("squish", (hands, _state) => {
+  if (!detectFlat(hands.left) || !detectFlat(hands.right)) return false;
+
+  const leftNormal = hands.left.metrics.palmNormal;
+  const rightNormal = hands.right.metrics.palmNormal;
+  return dot(leftNormal, rightNormal) > 0.7;
+});
+squishGesture.onActive = (hands, _state) => {
+  const leftPos = lmToV3(hands.left.sceneLandmarks[LM.MIDDLE_MCP]);
+  const rightPos = lmToV3(hands.left.sceneLandmarks[LM.MIDDLE_MCP]);
+  const midPos = average(leftPos, rightPos);
+  const axis = normalize(sub(leftPos, rightPos));
+
+  BrushSet.squish.state.axis = axis;
+  voxelGrid.applyBrush(BrushSet.squish, ...midPos);
+};
+
 handsTracker.addGesture(pinchGesture, 2);
 handsTracker.addGesture(clawGesture, 1);
-handsTracker.addGesture(flatGesture, 2);
 handsTracker.addGesture(swipeGesture, 3);
+handsTracker.addGesture(squishGesture, 1);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);

@@ -88,11 +88,11 @@ export class HandsTracker {
     this.left.gesturePair = null;
     this.right.gesturePair = null;
     for (const { gesture } of this.gesturePairs) {
-      const active = gesture.update(hands);
-      if (active) {
-        this.left.gesturePair = gesture;
-        this.right.gesturePair = gesture;
-        break;
+      if (this.left.gesturePair || this.right.gesturePair) gesture.update(hands, true, now);
+      else {
+        const activeGesture = gesture.update(hands, false, now) ? gesture : null;
+        this.left.gesturePair = activeGesture;
+        this.right.gesturePair = activeGesture;
       }
     }
   }

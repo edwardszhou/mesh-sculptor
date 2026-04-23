@@ -53,7 +53,7 @@ export class HandGesture {
     this.confidence[h] = clamp(this.confidence[h], 0, this.activationThreshold);
     this._onUpdate(hand, h);
 
-    if (silent) return false;
+    if (silent || hand.gesturePair) return false;
 
     if (!this.isActive[h] && this.confidence[h] >= this.activationThreshold) {
       this.isActive[h] = true;
@@ -87,43 +87,67 @@ export class HandGesture {
 
 export class HandGesturePair {
   id: string;
-  leftGesture: HandGesture;
-  rightGesture: HandGesture;
+  conditionFn: (hands: Hands<HandState>, state: any) => boolean;
+  activationThreshold: number;
+  activeCooldown: number;
 
+  onUpdate: (hands: Hands<HandState>, state: any) => void;
   onStart: (hands: Hands<HandState>, state: any) => void;
   onEnd: (hands: Hands<HandState>, state: any) => void;
   onActive: (hands: Hands<HandState>, state: any) => void;
 
-  isActive: boolean;
   state: any;
+  lastActiveTime: number;
+  confidence: number;
+  isActive: boolean;
 
-  constructor(id: string, leftGesture: HandGesture, rightGesture?: HandGesture) {
+  constructor(
+    id: string,
+    conditionFn: (hands: Hands<HandState>, state: any) => boolean,
+    activationThreshold = 5,
+    activeCooldown = 33
+  ) {
     this.id = id;
-    this.leftGesture = leftGesture;
-    this.rightGesture = rightGesture ?? leftGesture;
+    this.conditionFn = conditionFn;
+    this.activationThreshold = activationThreshold;
+    this.activeCooldown = activeCooldown;
+
+    this.state = {};
+    this.lastActiveTime = 0;
+    this.confidence = 0;
     this.isActive = false;
 
+    this.onUpdate = () => {};
     this.onStart = () => {};
     this.onEnd = () => {};
     this.onActive = () => {};
   }
 
-  update(hands: Hands<HandState>, silent = false) {
+  update(hands: Hands<HandState>, silent = false, timestamp = Date.now()) {
+    const conditionMet = this.conditionFn(hands, this.state);
+
+    // Increase/decrease confidence based on condition, update
+    this.confidence += conditionMet ? 1 : -1.5;
+    this.confidence = clamp(this.confidence, 0, this.activationThreshold);
+    this._onUpdate(hands, this.state);
+
     if (silent) return false;
 
-    const nowActive = this.leftGesture.isActive.left && this.rightGesture.isActive.right;
-    if (!this.isActive && nowActive) {
+    if (!this.isActive && this.confidence >= this.activationThreshold) {
       this.isActive = true;
       this._onStart(hands, this.state);
-    } else if (this.isActive && !nowActive) {
+    } else if (this.isActive && this.confidence == 0) {
       this.isActive = false;
       this._onEnd(hands, this.state);
     }
-    if (this.isActive) {
+    if (this.isActive && timestamp - this.lastActiveTime > this.activeCooldown) {
       this._onActive(hands, this.state);
     }
 
     return this.isActive;
+  }
+  protected _onUpdate(hands: Hands<HandState>, state: any) {
+    this.onUpdate(hands, state);
   }
   protected _onStart(hands: Hands<HandState>, state: any) {
     this.onStart(hands, state);
@@ -225,28 +249,28 @@ export class PinchGesture extends HandGesture {
     this.finger = finger;
   }
 
-  updateState(hand: HandState, h: Handedness) {
+  updateState(hand: HandState, state: any) {
     const newState = handLmAverage(hand.sceneLandmarks, [LM.THUMB_TIP, LM_TIPS[this.finger]]);
-    this.state[h] = { ...this.state[h], ...newState };
+    state = { ...state, ...newState };
   }
 
-  protected _onStart(hand: HandState, h: Handedness) {
-    this.state[h].duration = 0;
-    super._onStart(hand, h);
+  protected _onStart(hand: HandState, state: any) {
+    state.duration = 0;
+    super._onStart(hand, state);
   }
 
-  protected _onEnd(hand: HandState, h: Handedness) {
-    this.state[h].duration = 0;
-    super._onEnd(hand, h);
+  protected _onEnd(hand: HandState, state: any) {
+    state.duration = 0;
+    super._onEnd(hand, state);
   }
 
-  protected _onActive(hand: HandState, h: Handedness): void {
-    this.state[h].duration += 1;
-    super._onActive(hand, h);
+  protected _onActive(hand: HandState, state: any): void {
+    state.duration += 1;
+    super._onActive(hand, state);
   }
 
-  protected _onUpdate(hand: HandState, h: Handedness) {
-    this.updateState(hand, h);
-    super._onUpdate(hand, h);
+  protected _onUpdate(hand: HandState, state: any) {
+    this.updateState(hand, state);
+    super._onUpdate(hand, state);
   }
 }
