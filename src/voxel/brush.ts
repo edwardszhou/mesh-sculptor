@@ -1,4 +1,4 @@
-import { clamp, dot, FALLOFF, mul, sub, type FalloffFn, type V3 } from "../utils/math";
+import { add, clamp, dot, FALLOFF, mul, sub, type FalloffFn, type V3 } from "../utils/math";
 
 export type BrushContext = {
   vx: number;
@@ -55,12 +55,13 @@ export const BrushSet: Record<string, Brush> = {
       6;
     return current + weight * (avg - current);
   }),
-  squish: new Brush(0.2, 0.1, FALLOFF.cubic, (self, ctx) => {
-    const { left, right, crossAxis } = self.state;
+  squish: new Brush(0.2, 0.6, FALLOFF.cubic, (self, ctx) => {
+    const { left, right, mid, crossAxis } = self.state;
     const { current, direction, weight } = ctx;
 
-    const dLeft = dot(sub(direction, left), mul(crossAxis, -0.5));
-    const dRight = dot(sub(direction, right), mul(crossAxis, 0.5));
+    const voxelPos = add(mid, direction);
+    const dLeft = dot(sub(voxelPos, left), mul(crossAxis, -1));
+    const dRight = dot(sub(voxelPos, right), mul(crossAxis, 1));
     if (dLeft < 0 || dRight < 0) {
       const newVal = clamp(current + weight / 1, -1, 1);
       self.state.massStore += newVal - current;

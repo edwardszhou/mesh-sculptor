@@ -254,7 +254,7 @@ class VoxelGrid {
     this.updateChunkFilledCounts();
   }
 
-  applyBrush(brush: Brush, bwx: number, bwy: number, bwz: number) {
+  applyBrush(brush: Brush, bwx: number, bwy: number, bwz: number, correctVolume = true) {
     const [vxBrush, vyBrush, vzBrush] = this.wToV(bwx, bwy, bwz);
     const vRadius = Math.ceil(brush.radius / this.voxelWorldSize);
     const bRadius2 = brush.radius ** 2;
@@ -320,9 +320,11 @@ class VoxelGrid {
       }
     }
 
-    const massAfter = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
-    const delta = massAfter - massBefore;
-    this.applyVolumeCorrection(vxBrush, vyBrush, vzBrush, vRadius, vRadius * 2, delta);
+    if (correctVolume) {
+      const massAfter = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
+      const delta = massAfter - massBefore;
+      this.applyVolumeCorrection(vxBrush, vyBrush, vzBrush, vRadius, vRadius * 2, delta);
+    }
     // const massCorrected = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
     // const delta2 = massCorrected - massAfter;
     // console.log(delta, delta2);

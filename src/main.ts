@@ -142,9 +142,11 @@ squishGesture.onActive = (hands, _state) => {
 
   BrushSet.squish.radius = mag(crossAxis);
   BrushSet.squish.state.left = leftPos;
+  BrushSet.squish.state.mid = midPos;
   BrushSet.squish.state.right = rightPos;
   BrushSet.squish.state.crossAxis = normalize(crossAxis);
-  voxelGrid.applyBrush(BrushSet.squish, ...midPos);
+
+  voxelGrid.applyBrush(BrushSet.squish, ...midPos, false);
 };
 
 handsTracker.addGesture(pinchGesture, 2);
