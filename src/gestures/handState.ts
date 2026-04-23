@@ -1,4 +1,4 @@
-import type { Gesture } from "./gesture";
+import type { Gesture, HandGesturePair } from "./gesture";
 import {
   LM,
   LM_FINGERS,
@@ -41,6 +41,7 @@ export class HandState {
   };
   metrics: HandMetrics;
   gesture: Gesture | null;
+  gesturePair: HandGesturePair | null;
 
   constructor() {
     this.present = false;
@@ -64,6 +65,7 @@ export class HandState {
     };
 
     this.gesture = null;
+    this.gesturePair = null;
   }
 
   updateFromResult(result: HandResult | null, handedness: Handedness, scene: SculptScene) {

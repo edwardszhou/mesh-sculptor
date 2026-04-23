@@ -45,7 +45,8 @@ export class HandGesture {
   }
 
   update(hand: HandState, h: Handedness, silent = false, timestamp = Date.now()) {
-    const conditionMet = this.conditionFn(hand, this.state[h]);
+    const state = this.state[h];
+    const conditionMet = this.conditionFn(hand, state);
 
     // Increase/decrease confidence based on condition, update
     this.confidence[h] += conditionMet ? 1 : -1.5;
@@ -56,31 +57,82 @@ export class HandGesture {
 
     if (!this.isActive[h] && this.confidence[h] >= this.activationThreshold) {
       this.isActive[h] = true;
-      this._onStart?.(hand, h);
+      this._onStart(hand, state);
     } else if (this.isActive[h] && this.confidence[h] == 0) {
       this.isActive[h] = false;
-      this._onEnd?.(hand, h);
+      this._onEnd(hand, state);
     }
 
     if (this.isActive[h] && timestamp - this.lastActiveTime[h] > this.activeCooldown) {
       this.lastActiveTime[h] = timestamp;
-      this._onActive?.(hand, h);
+      this._onActive(hand, state);
     }
 
     return this.isActive[h];
   }
 
-  protected _onUpdate(hand: HandState, h: Handedness) {
-    this.onUpdate?.(hand, this.state[h]);
+  protected _onUpdate(hand: HandState, state: any) {
+    this.onUpdate(hand, state);
   }
-  protected _onStart(hand: HandState, h: Handedness) {
-    this.onStart?.(hand, this.state[h]);
+  protected _onStart(hand: HandState, state: any) {
+    this.onStart(hand, state);
   }
-  protected _onEnd(hand: HandState, h: Handedness) {
-    this.onEnd?.(hand, this.state[h]);
+  protected _onEnd(hand: HandState, state: any) {
+    this.onEnd(hand, state);
   }
-  protected _onActive(hand: HandState, h: Handedness) {
-    this.onActive?.(hand, this.state[h]);
+  protected _onActive(hand: HandState, state: any) {
+    this.onActive(hand, state);
+  }
+}
+
+export class HandGesturePair {
+  id: string;
+  leftGesture: HandGesture;
+  rightGesture: HandGesture;
+
+  onStart: (hands: Hands<HandState>, state: any) => void;
+  onEnd: (hands: Hands<HandState>, state: any) => void;
+  onActive: (hands: Hands<HandState>, state: any) => void;
+
+  isActive: boolean;
+  state: any;
+
+  constructor(id: string, leftGesture: HandGesture, rightGesture?: HandGesture) {
+    this.id = id;
+    this.leftGesture = leftGesture;
+    this.rightGesture = rightGesture ?? leftGesture;
+    this.isActive = false;
+
+    this.onStart = () => {};
+    this.onEnd = () => {};
+    this.onActive = () => {};
+  }
+
+  update(hands: Hands<HandState>, silent = false) {
+    if (silent) return false;
+
+    const nowActive = this.leftGesture.isActive.left && this.rightGesture.isActive.right;
+    if (!this.isActive && nowActive) {
+      this.isActive = true;
+      this._onStart(hands, this.state);
+    } else if (this.isActive && !nowActive) {
+      this.isActive = false;
+      this._onEnd(hands, this.state);
+    }
+    if (this.isActive) {
+      this._onActive(hands, this.state);
+    }
+
+    return this.isActive;
+  }
+  protected _onStart(hands: Hands<HandState>, state: any) {
+    this.onStart(hands, state);
+  }
+  protected _onEnd(hands: Hands<HandState>, state: any) {
+    this.onEnd(hands, state);
+  }
+  protected _onActive(hands: Hands<HandState>, state: any) {
+    this.onActive(hands, state);
   }
 }
 
@@ -148,10 +200,10 @@ export class MotionGesture {
   }
 
   protected _onTriggerAB(hand: HandState, h: Handedness) {
-    this.onTriggerAB?.(this, hand, h);
+    this.onTriggerAB(this, hand, h);
   }
   protected _onTriggerBA(hand: HandState, h: Handedness) {
-    this.onTriggerBA?.(this, hand, h);
+    this.onTriggerBA(this, hand, h);
   }
 }
 
