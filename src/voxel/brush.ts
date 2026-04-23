@@ -1,4 +1,4 @@
-import { add, clamp, dot, FALLOFF, mul, sub, type FalloffFn, type V3 } from "../utils/math";
+import { add, clamp, dot, FALLOFF, mag, mul, sub, type FalloffFn, type V3 } from "../utils/math";
 
 export type BrushContext = {
   vx: number;
@@ -68,6 +68,28 @@ export const BrushSet: Record<string, Brush> = {
       return newVal;
     }
     const newVal = clamp(current - weight / 4, -1, 1);
+    if (self.state.massStore + newVal - current < 0) return current;
+    self.state.massStore += newVal - current;
+    return newVal;
+  }),
+  roll: new Brush(0.2, 0.4, FALLOFF.cubic, (self, ctx) => {
+    const { mid, rollAxis } = self.state;
+    const { current, direction, weight } = ctx;
+
+    const axisRad = self.radius / 4;
+
+    const voxelPos = add(mid, direction);
+    const vAxis = dot(sub(voxelPos, mid), rollAxis) / dot(rollAxis, rollAxis);
+    const vNonAxis = sub(voxelPos, mul(rollAxis, vAxis));
+
+    const dAxis = mag(vNonAxis) - axisRad;
+
+    if (dAxis > 0) {
+      const newVal = clamp(current + weight, -1, 1);
+      self.state.massStore += newVal - current;
+      return newVal;
+    }
+    const newVal = clamp(current - weight, -1, 1);
     if (self.state.massStore + newVal - current < 0) return current;
     self.state.massStore += newVal - current;
     return newVal;

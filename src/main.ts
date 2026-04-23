@@ -9,7 +9,7 @@ import { SculptScene } from "./render/scene";
 import { FINGERS, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
 import { HandGesture, HandGesturePair, PinchGesture } from "./gestures/gesture";
 import { Brush, BrushSet } from "./voxel/brush";
-import { average, distance, dot, mag, normalize, remap, sub } from "./utils/math";
+import { average, cross, distance, dot, mag, normalize, remap, sub } from "./utils/math";
 import type { HandState } from "./gestures/handState";
 
 const appConfig = {
@@ -68,7 +68,7 @@ pinchGesture.onActive = (hand, state) => {
 
   const delta = lmDistance(indexPos, state.lastPos);
   state.lastPos = { ...indexPos };
-  const massFactor = remap(delta ** 0.5, 0, 0.02, 0, 0.2, false);
+  const massFactor = remap(delta, 0, 0.02, 0, 0.2, false);
   state.remainingMass *= Math.max(0, 1 - 0.2 * massFactor);
   if (state.remainingMass < 0.1) state.remainingMass = 0;
 
@@ -103,7 +103,7 @@ const swipeGesture = new HandGesture(
       state.speed = (state.speed ?? 0) * 0.5 + delta * 0.5;
     }
     state.lastPos = { ...middlePos };
-    return state.speed > 0.001 * fps;
+    return state.speed > 0.005 * fps;
   },
   15
 );
@@ -125,8 +125,10 @@ const detectFlat = (hand: HandState) => {
 };
 
 const squishGesture = new HandGesturePair("squish", (hands, _state) => {
+  // both hands are right shape
   if (!detectFlat(hands.left) || !detectFlat(hands.right)) return false;
 
+  // hands are facing each other
   const leftNormal = hands.left.metrics.palmNormal;
   const rightNormal = hands.right.metrics.palmNormal;
   return dot(leftNormal, rightNormal) > 0.5;
@@ -149,10 +151,69 @@ squishGesture.onActive = (hands, _state) => {
   voxelGrid.applyBrush(BrushSet.squish, ...midPos, false);
 };
 
+const rollGesture = new HandGesturePair(
+  "roll",
+  (hands, state) => {
+    // both hands are right shape
+    if (!detectFlat(hands.left) || !detectFlat(hands.right)) return false;
+
+    // hands are facing each other
+    const leftNormal = hands.left.metrics.palmNormal;
+    const rightNormal = hands.right.metrics.palmNormal;
+    if (dot(leftNormal, rightNormal) < 0.5) return false;
+
+    const leftMiddlePos = lmToV3(hands.left.sceneLandmarks[LM.MIDDLE_PIP]);
+    const rightMiddlePos = lmToV3(hands.right.sceneLandmarks[LM.MIDDLE_PIP]);
+    if (!state.leftLastPos || !state.rightLastPos) {
+      state.leftLastPos = leftMiddlePos;
+      state.rightLastPos = rightMiddlePos;
+      return false;
+    }
+    const leftVel = sub(leftMiddlePos, state.leftLastPos);
+    const rightVel = sub(rightMiddlePos, state.rightLastPos);
+
+    if (mag(leftVel) < 0.003 * fps || mag(rightVel) < 0.003 * fps) return false;
+
+    state.leftLastPos = leftMiddlePos;
+    state.rightLastPos = rightMiddlePos;
+
+    // hands are moving opposite each other
+    if (dot(leftVel, rightVel) > 0) return false;
+
+    // hands are not moving along palm normal
+    if (Math.abs(dot(leftNormal, leftVel)) > 0.3 || Math.abs(dot(rightNormal, rightVel)) > 0.3)
+      return false;
+
+    state.rollAxis = normalize(cross(leftVel, leftNormal));
+    return true;
+  },
+  8
+);
+rollGesture.onStart = (_hands, _state) => {
+  BrushSet.roll.state.massStore = 0;
+  BrushSet.roll.state.closestDistance = null;
+};
+rollGesture.onActive = (hands, state) => {
+  const leftPos = lmToV3(hands.left.sceneLandmarks[LM.MIDDLE_MCP]);
+  const rightPos = lmToV3(hands.right.sceneLandmarks[LM.MIDDLE_MCP]);
+  const midPos = average(leftPos, rightPos);
+  const crossAxis = sub(leftPos, rightPos);
+
+  BrushSet.roll.radius = Math.min(
+    mag(crossAxis) * 2,
+    BrushSet.roll.state.closestDistance ?? Infinity
+  );
+  BrushSet.roll.state.mid = midPos;
+  BrushSet.roll.state.rollAxis = state.rollAxis;
+
+  voxelGrid.applyBrush(BrushSet.roll, ...midPos, false);
+};
+
 handsTracker.addGesture(pinchGesture, 2);
 handsTracker.addGesture(clawGesture, 1);
 handsTracker.addGesture(swipeGesture, 3);
 handsTracker.addGesture(squishGesture, 1);
+handsTracker.addGesture(rollGesture, 2);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);

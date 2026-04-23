@@ -48,7 +48,7 @@ export function mag(a: V3): number {
 }
 
 export function normalize(a: V3): V3 {
-  const magA = mag(a);
+  const magA = Math.min(mag(a), 0.001);
   return [a[0] / magA, a[1] / magA, a[2] / magA];
 }
 

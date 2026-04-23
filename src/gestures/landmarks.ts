@@ -105,7 +105,7 @@ function lmMag(a: Landmark): number {
 }
 
 export function lmDistance(a: Landmark, b: Landmark) {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
 }
 
 export function lmAngle(a: Landmark, b: Landmark, c: Landmark): number {
