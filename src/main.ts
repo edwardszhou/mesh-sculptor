@@ -72,39 +72,35 @@ const clawGesture = new HandGesture(
   8
 );
 
-pinchGesture.onUpdate = (gesture, hand, h) => {
-  if (!gesture.confidence[h]) {
-    const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-    const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
-    // voxelGrid.applyBrush(BrushSet.noop, indexPos.x, indexPos.y, indexPos.z);
-    voxelGrid.applyBrush(BrushSet.indent, indexPos.x, indexPos.y, indexPos.z);
-    voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
-    // voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
-  }
+pinchGesture.onUpdate = (_hand) => {
+  // if (!gesture.confidence[h]) {
+  //   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+  //   const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
+  // voxelGrid.applyBrush(BrushSet.noop, indexPos.x, indexPos.y, indexPos.z);
+  // voxelGrid.applyBrush(BrushSet.indent, indexPos.x, indexPos.y, indexPos.z);
+  // voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
+  // voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
+  // }
 };
-pinchGesture.onStart = (gesture, hand, h) => {
-  handsTracker.mesh.setColors(new THREE.Color(0xff0000), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
+pinchGesture.onStart = (hand, state) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
 
   const vRadius = Math.ceil(BrushSet.pinch.radius / voxelGrid.voxelWorldSize);
   const [vx, vy, vz] = voxelGrid.wToV(indexPos.x, indexPos.y, indexPos.z);
   const startMass = voxelGrid.calculateMass(vx, vy, vz, vRadius);
 
-  gesture.state[h].lastPos = { ...indexPos };
-  gesture.state[h].remainingMass = startMass;
-  gesture.state[h].totalMass = startMass;
+  state.lastPos = { ...indexPos };
+  state.remainingMass = startMass;
+  state.totalMass = startMass;
 };
-pinchGesture.onEnd = (_gesture, _hand, h) => {
-  handsTracker.mesh.setColors(new THREE.Color(0xffffff), h, [LM.INDEX_TIP, LM.THUMB_TIP]);
-};
-pinchGesture.onActive = (gesture, hand, h) => {
-  const state = gesture.state[h];
+
+pinchGesture.onActive = (hand, state) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
 
   if (!state.totalMass || !state.remainingMass) return;
 
   const delta = lmDistance(indexPos, state.lastPos);
-  state.lastPos = { x: indexPos.x, y: indexPos.y, z: indexPos.z };
+  state.lastPos = { ...indexPos };
   const massFactor = remap(delta, 0.005, 0.05, 0, 1);
   state.remainingMass *= 1 - 0.15 * massFactor;
   if (state.remainingMass < 0.1) state.remainingMass = 0;
@@ -113,9 +109,35 @@ pinchGesture.onActive = (gesture, hand, h) => {
   voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
 };
 
+const swipeGesture = new HandGesture(
+  "swipe",
+  (hand, state) => {
+    const angles = hand.metrics.curlAngle;
+    const minCurlAngle = Math.min(...angles);
+    const maxCurlAngle = Math.max(...angles);
+    const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
+    if (avgCurlAngle < 100 || maxCurlAngle - minCurlAngle > 30) return false;
+
+    const middlePos = hand.sceneLandmarks[LM.MIDDLE_PIP];
+    if (state.lastPos) {
+      const delta = lmDistance(middlePos, state.lastPos);
+      state.speed = (state.speed ?? 0) * 0.4 + delta * 0.6;
+    }
+    state.lastPos = { ...middlePos };
+    return state.speed > 0.1;
+  },
+  15
+);
+
+swipeGesture.onActive = (hand) => {
+  const middlePos = hand.sceneLandmarks[LM.MIDDLE_PIP];
+  voxelGrid.applyBrush(BrushSet.smooth, middlePos.x, middlePos.y, middlePos.z);
+};
+
 handsTracker.addGesture(pinchGesture, 2);
 handsTracker.addGesture(clawGesture, 1);
 handsTracker.addGesture(flatGesture, 2);
+handsTracker.addGesture(swipeGesture, 3);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
@@ -136,7 +158,7 @@ scene.animate = async () => {
 
   voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
-  // console.log(handsTracker.right.gesture?.id);
-  // console.log(handsTracker.left.gesture?.id);
+  console.log(handsTracker.right.gesture?.id);
+  console.log(handsTracker.left.gesture?.id);
   marchingCubes.triangulateDirty();
 };

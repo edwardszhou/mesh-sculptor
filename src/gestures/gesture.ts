@@ -7,14 +7,14 @@ export type Gesture = HandGesture | MotionGesture;
 
 export class HandGesture {
   id: string;
-  conditionFn: (hand: HandState) => boolean;
+  conditionFn: (hand: HandState, state: any) => boolean;
   activationThreshold: number;
   activeCooldown: number;
 
-  onUpdate: (self: HandGesture, hand: HandState, h: Handedness) => void;
-  onStart: (self: HandGesture, hand: HandState, h: Handedness) => void;
-  onEnd: (self: HandGesture, hand: HandState, h: Handedness) => void;
-  onActive: (self: HandGesture, hand: HandState, h: Handedness) => void;
+  onUpdate: (hand: HandState, state: any) => void;
+  onStart: (hand: HandState, state: any) => void;
+  onEnd: (hand: HandState, state: any) => void;
+  onActive: (hand: HandState, state: any) => void;
 
   state: Hands<any>;
   lastActiveTime: Hands<number>;
@@ -23,7 +23,7 @@ export class HandGesture {
 
   constructor(
     id: string,
-    conditionFn: (hand: HandState) => boolean,
+    conditionFn: (hand: HandState, state: any) => boolean,
     activationThreshold = 5,
     activeCooldown = 33
   ) {
@@ -45,7 +45,7 @@ export class HandGesture {
   }
 
   update(hand: HandState, h: Handedness, silent = false, timestamp = Date.now()) {
-    const conditionMet = this.conditionFn(hand);
+    const conditionMet = this.conditionFn(hand, this.state[h]);
 
     // Increase/decrease confidence based on condition, update
     this.confidence[h] += conditionMet ? 1 : -1.5;
@@ -71,16 +71,16 @@ export class HandGesture {
   }
 
   protected _onUpdate(hand: HandState, h: Handedness) {
-    this.onUpdate?.(this, hand, h);
+    this.onUpdate?.(hand, this.state[h]);
   }
   protected _onStart(hand: HandState, h: Handedness) {
-    this.onStart?.(this, hand, h);
+    this.onStart?.(hand, this.state[h]);
   }
   protected _onEnd(hand: HandState, h: Handedness) {
-    this.onEnd?.(this, hand, h);
+    this.onEnd?.(hand, this.state[h]);
   }
   protected _onActive(hand: HandState, h: Handedness) {
-    this.onActive?.(this, hand, h);
+    this.onActive?.(hand, this.state[h]);
   }
 }
 

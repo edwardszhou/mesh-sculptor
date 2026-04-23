@@ -40,11 +40,10 @@ export const BrushSet: Record<string, Brush> = {
   indent: new Brush(0.15, 0.2, FALLOFF.cubic, (_self, { current, weight }) =>
     clamp(current + weight, -1, 1)
   ),
-  stuff: new Brush(0.2, 0.2, FALLOFF.cubic, (self, { current, weight }) => {
-    const factor = 1 / self.state.delta;
-    return clamp(current - weight * factor, -1, 1);
+  pinch: new Brush(0.2, 0.2, FALLOFF.cosine, (self, { current, weight }) => {
+    return clamp(current - weight * self.state.factor, -1, 1);
   }),
-  smooth: new Brush(0.3, 1.0, FALLOFF.cubic, (_self, ctx) => {
+  smooth: new Brush(0.5, 3.0, FALLOFF.cubic, (_self, ctx) => {
     const { vx, vy, vz, getVal, current, weight } = ctx;
     const avg =
       (getVal(vx + 1, vy, vz) +
@@ -55,8 +54,5 @@ export const BrushSet: Record<string, Brush> = {
         getVal(vx, vy, vz - 1)) /
       6;
     return current + weight * (avg - current);
-  }),
-  pinch: new Brush(0.2, 0.2, FALLOFF.cosine, (self, { current, weight }) => {
-    return clamp(current - weight * self.state.factor, -1, 1);
   })
 };
