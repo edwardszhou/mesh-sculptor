@@ -2,14 +2,14 @@ import * as THREE from "three";
 import { Mediapipe } from "./gestures/mediapipe";
 import { Home } from "./ui/home";
 import { VoxelGrid } from "./voxel/grid";
-import { MarchingCubes } from "./mesh/marchingCubes";
+import { MarchingCubes } from "./voxel/marchingCubes";
 import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
-import { FINGERS, LM, lmDistance, lmMag, lmSub } from "./gestures/landmarks";
+import { FINGERS, LM, lmDistance } from "./gestures/landmarks";
 import { HandGesture, PinchGesture } from "./gestures/gesture";
 import { BrushSet } from "./voxel/brush";
-import { clamp, dot, remap } from "./utils/math";
+import { dot, remap } from "./utils/math";
 
 const appConfig = {
   SHOW_WORLD_GRID: false,
@@ -50,6 +50,32 @@ const marchedMesh = new THREE.Mesh(
 const handsTracker = new HandsTracker(true);
 
 const pinchGesture = new PinchGesture("indexPinch", FINGERS.INDEX, 0.25, 5);
+pinchGesture.onStart = (hand, state) => {
+  const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+
+  const vRadius = Math.ceil(BrushSet.pinch.radius / voxelGrid.voxelWorldSize);
+  const [vx, vy, vz] = voxelGrid.wToV(indexPos.x, indexPos.y, indexPos.z);
+  const startMass = voxelGrid.calculateMass(vx, vy, vz, vRadius);
+
+  state.lastPos = { ...indexPos };
+  state.remainingMass = startMass;
+  state.totalMass = startMass;
+};
+pinchGesture.onActive = (hand, state) => {
+  const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+
+  if (!state.totalMass || !state.remainingMass) return;
+
+  const delta = lmDistance(indexPos, state.lastPos);
+  state.lastPos = { ...indexPos };
+  const massFactor = remap(delta, 0.005, 0.05, 0, 1);
+  state.remainingMass *= 1 - 0.15 * massFactor;
+  if (state.remainingMass < 0.1) state.remainingMass = 0;
+
+  BrushSet.pinch.state.factor = state.remainingMass / state.totalMass;
+  voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
+};
+
 const flatGesture = new HandGesture("flat", (hand) => {
   const angles = hand.metrics.curlAngle;
   const minCurlAngle = Math.min(...angles);
@@ -72,43 +98,6 @@ const clawGesture = new HandGesture(
   8
 );
 
-pinchGesture.onUpdate = (_hand) => {
-  // if (!gesture.confidence[h]) {
-  //   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-  //   const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
-  // voxelGrid.applyBrush(BrushSet.noop, indexPos.x, indexPos.y, indexPos.z);
-  // voxelGrid.applyBrush(BrushSet.indent, indexPos.x, indexPos.y, indexPos.z);
-  // voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
-  // voxelGrid.applyBrush(BrushSet.smooth, indexPos.x, indexPos.y, indexPos.z);
-  // }
-};
-pinchGesture.onStart = (hand, state) => {
-  const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-
-  const vRadius = Math.ceil(BrushSet.pinch.radius / voxelGrid.voxelWorldSize);
-  const [vx, vy, vz] = voxelGrid.wToV(indexPos.x, indexPos.y, indexPos.z);
-  const startMass = voxelGrid.calculateMass(vx, vy, vz, vRadius);
-
-  state.lastPos = { ...indexPos };
-  state.remainingMass = startMass;
-  state.totalMass = startMass;
-};
-
-pinchGesture.onActive = (hand, state) => {
-  const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
-
-  if (!state.totalMass || !state.remainingMass) return;
-
-  const delta = lmDistance(indexPos, state.lastPos);
-  state.lastPos = { ...indexPos };
-  const massFactor = remap(delta, 0.005, 0.05, 0, 1);
-  state.remainingMass *= 1 - 0.15 * massFactor;
-  if (state.remainingMass < 0.1) state.remainingMass = 0;
-
-  BrushSet.pinch.state.factor = state.remainingMass / state.totalMass;
-  voxelGrid.applyBrush(BrushSet.pinch, indexPos.x, indexPos.y, indexPos.z);
-};
-
 const swipeGesture = new HandGesture(
   "swipe",
   (hand, state) => {
@@ -128,7 +117,6 @@ const swipeGesture = new HandGesture(
   },
   15
 );
-
 swipeGesture.onActive = (hand) => {
   const middlePos = hand.sceneLandmarks[LM.MIDDLE_PIP];
   voxelGrid.applyBrush(BrushSet.smooth, middlePos.x, middlePos.y, middlePos.z);

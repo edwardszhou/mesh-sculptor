@@ -54,5 +54,8 @@ export const BrushSet: Record<string, Brush> = {
         getVal(vx, vy, vz - 1)) /
       6;
     return current + weight * (avg - current);
+  }),
+  squish: new Brush(0.2, 0.1, FALLOFF.cubic, (_self, _ctx) => {
+    return 0;
   })
 };

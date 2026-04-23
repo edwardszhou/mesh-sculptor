@@ -87,7 +87,7 @@ class Mediapipe {
     this.filters = { left: [], right: [] };
     this.initFilters();
 
-    this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
+    this.worker = new Worker(new URL("./mediapipeWorker.ts", import.meta.url), {
       type: "module"
     });
     this.workerIsProcessing = false;
