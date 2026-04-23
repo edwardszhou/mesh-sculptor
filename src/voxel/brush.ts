@@ -1,4 +1,4 @@
-import { clamp, FALLOFF, type FalloffFn, type V3 } from "../utils/math";
+import { clamp, dot, FALLOFF, mul, sub, type FalloffFn, type V3 } from "../utils/math";
 
 export type BrushContext = {
   vx: number;
@@ -37,10 +37,10 @@ export class Brush {
 
 export const BrushSet: Record<string, Brush> = {
   noop: new Brush(0.2, 0, FALLOFF.constant, (_self, { current }) => current),
-  indent: new Brush(0.15, 0.2, FALLOFF.cubic, (_self, { current, weight }) =>
+  indent: new Brush(0.15, 0.5, FALLOFF.cubic, (_self, { current, weight }) =>
     clamp(current + weight, -1, 1)
   ),
-  pinch: new Brush(0.2, 0.2, FALLOFF.cosine, (self, { current, weight }) => {
+  pinch: new Brush(0.2, 0.7, FALLOFF.cosine, (self, { current, weight }) => {
     return clamp(current - weight * self.state.factor, -1, 1);
   }),
   smooth: new Brush(0.5, 1.0, FALLOFF.cubic, (_self, ctx) => {
@@ -55,8 +55,20 @@ export const BrushSet: Record<string, Brush> = {
       6;
     return current + weight * (avg - current);
   }),
-  squish: new Brush(0.2, 0.1, FALLOFF.cubic, (_self, ctx) => {
-    const { current } = ctx;
-    return current;
+  squish: new Brush(0.2, 0.1, FALLOFF.cubic, (self, ctx) => {
+    const { left, right, crossAxis } = self.state;
+    const { current, direction, weight } = ctx;
+
+    const dLeft = dot(sub(direction, left), mul(crossAxis, -0.5));
+    const dRight = dot(sub(direction, right), mul(crossAxis, 0.5));
+    if (dLeft < 0 || dRight < 0) {
+      const newVal = clamp(current + weight / 1, -1, 1);
+      self.state.massStore += newVal - current;
+      return newVal;
+    }
+    const newVal = clamp(current - weight / 4, -1, 1);
+    if (self.state.massStore + newVal - current < 0) return current;
+    self.state.massStore += newVal - current;
+    return newVal;
   })
 };

@@ -300,7 +300,7 @@ class VoxelGrid {
           const normDist2 = dwx * dwx + dwy * dwy + dwz * dwz;
           if (normDist2 > bRadius2) continue;
 
-          const weight = brush.falloff(Math.sqrt(normDist2) / brush.radius);
+          const weight = brush.falloff(Math.sqrt(normDist2) / brush.radius) * brush.strength;
           const current = getTemp(vx, vy, vz);
           const next = brush.apply(brush, {
             vx,
@@ -323,7 +323,6 @@ class VoxelGrid {
     const massAfter = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
     const delta = massAfter - massBefore;
     this.applyVolumeCorrection(vxBrush, vyBrush, vzBrush, vRadius, vRadius * 2, delta);
-
     // const massCorrected = this.calculateMass(vxBrush, vyBrush, vzBrush, vRadius * 2);
     // const delta2 = massCorrected - massAfter;
     // console.log(delta, delta2);

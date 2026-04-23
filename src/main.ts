@@ -9,7 +9,7 @@ import { SculptScene } from "./render/scene";
 import { FINGERS, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
 import { HandGesture, HandGesturePair, PinchGesture } from "./gestures/gesture";
 import { Brush, BrushSet } from "./voxel/brush";
-import { average, distance, dot, normalize, remap, sub } from "./utils/math";
+import { average, distance, dot, mag, normalize, remap, sub } from "./utils/math";
 import type { HandState } from "./gestures/handState";
 
 const appConfig = {
@@ -57,7 +57,6 @@ pinchGesture.onStart = (hand, state) => {
   const vRadius = Math.ceil(BrushSet.pinch.radius / voxelGrid.voxelWorldSize);
   const [vx, vy, vz] = voxelGrid.wToV(indexPos.x, indexPos.y, indexPos.z);
   const startMass = voxelGrid.calculateMass(vx, vy, vz, vRadius);
-
   state.lastPos = { ...indexPos };
   state.remainingMass = startMass;
   state.totalMass = startMass;
@@ -69,8 +68,8 @@ pinchGesture.onActive = (hand, state) => {
 
   const delta = lmDistance(indexPos, state.lastPos);
   state.lastPos = { ...indexPos };
-  const massFactor = remap(delta, 0.005, 0.05, 0, 1);
-  state.remainingMass *= 1 - 0.15 * massFactor;
+  const massFactor = remap(delta ** 0.5, 0, 0.02, 0, 0.2, false);
+  state.remainingMass *= Math.max(0, 1 - 0.2 * massFactor);
   if (state.remainingMass < 0.1) state.remainingMass = 0;
 
   BrushSet.pinch.state.factor = state.remainingMass / state.totalMass;
@@ -101,10 +100,10 @@ const swipeGesture = new HandGesture(
     const middlePos = hand.sceneLandmarks[LM.MIDDLE_PIP];
     if (state.lastPos) {
       const delta = lmDistance(middlePos, state.lastPos);
-      state.speed = (state.speed ?? 0) * 0.4 + delta * 0.6;
+      state.speed = (state.speed ?? 0) * 0.5 + delta * 0.5;
     }
     state.lastPos = { ...middlePos };
-    return state.speed > 0.1;
+    return state.speed > 0.001 * fps;
   },
   15
 );
@@ -114,6 +113,8 @@ swipeGesture.onActive = (hand) => {
 };
 
 const detectFlat = (hand: HandState) => {
+  if (!hand.present) return false;
+
   const angles = hand.metrics.curlAngle;
   const minCurlAngle = Math.min(...angles);
   const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
@@ -128,15 +129,21 @@ const squishGesture = new HandGesturePair("squish", (hands, _state) => {
 
   const leftNormal = hands.left.metrics.palmNormal;
   const rightNormal = hands.right.metrics.palmNormal;
-  return dot(leftNormal, rightNormal) > 0.7;
+  return dot(leftNormal, rightNormal) > 0.5;
 });
+squishGesture.onStart = (_hands, _state) => {
+  BrushSet.squish.state.massStore = 0;
+};
 squishGesture.onActive = (hands, _state) => {
   const leftPos = lmToV3(hands.left.sceneLandmarks[LM.MIDDLE_MCP]);
-  const rightPos = lmToV3(hands.left.sceneLandmarks[LM.MIDDLE_MCP]);
+  const rightPos = lmToV3(hands.right.sceneLandmarks[LM.MIDDLE_MCP]);
   const midPos = average(leftPos, rightPos);
-  const axis = normalize(sub(leftPos, rightPos));
+  const crossAxis = sub(leftPos, rightPos);
 
-  BrushSet.squish.state.axis = axis;
+  BrushSet.squish.radius = mag(crossAxis);
+  BrushSet.squish.state.left = leftPos;
+  BrushSet.squish.state.right = rightPos;
+  BrushSet.squish.state.crossAxis = normalize(crossAxis);
   voxelGrid.applyBrush(BrushSet.squish, ...midPos);
 };
 
@@ -154,6 +161,8 @@ scene.resize = () => {
   mediapipe.resize();
 };
 
+let fps = 0;
+let lastTime = Date.now();
 scene.animate = async () => {
   if (appConfig.MEDIAPIPE_WORKER) {
     await scene.waitForGPU();
@@ -164,7 +173,12 @@ scene.animate = async () => {
 
   voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
-  console.log(handsTracker.right.gesture?.id);
-  console.log(handsTracker.left.gesture?.id);
+  console.log(handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id);
+  console.log(handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id);
   marchingCubes.triangulateDirty();
+
+  const now = Date.now();
+  const dt = now - lastTime;
+  fps = 0.5 * fps + (0.5 * 1000) / dt;
+  lastTime = now;
 };

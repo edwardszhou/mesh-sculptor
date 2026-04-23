@@ -13,7 +13,7 @@ import type { SculptScene } from "../render/scene";
 import { cross, normalize, sub, type V3 } from "../utils/math";
 
 const SCENE_LANDMARKS_SCALE = 15;
-const SCENE_LANDMARKS_OFFSET_X = 0.15;
+const SCENE_LANDMARKS_OFFSET_X = 0.25;
 const SCENE_LANDMARKS_OFFSET_Y = -0.2;
 const SCENE_LANDMARKS_OFFSET_Z = 2.5;
 
