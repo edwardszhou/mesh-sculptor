@@ -193,12 +193,12 @@ class VoxelGrid {
     return new Int32Array(resultArr);
   }
 
-  transformComponent(component: Int32Array, translation: V3, rotation: [V3, V3, V3], pivot: V3) {
+  transformComponent(component: Int32Array, translation: V3, _rotation: [V3, V3, V3], _pivot: V3) {
     const componentVoxelCount = component.length / 3;
     const res = this.voxelResolution;
     const [tx, ty, tz] = translation;
-    const [px, py, pz] = pivot;
-    const r = rotation;
+    // const [px, py, pz] = pivot;
+    // const r = rotation;
 
     // Snapshot component
     const prev = new Float32Array(componentVoxelCount);

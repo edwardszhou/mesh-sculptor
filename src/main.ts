@@ -8,11 +8,10 @@ import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
 import { FINGERS, handLmAverage, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
 import { HandGesture, HandGesturePair, PinchGesture } from "./gestures/gesture";
-import { Brush, BrushSet } from "./voxel/brush";
+import { BrushSet } from "./voxel/brush";
 import {
   average,
   cross,
-  distance,
   dot,
   mag,
   matmul,
@@ -61,7 +60,17 @@ const marchedMesh = new THREE.Mesh(
 
 const handsTracker = new HandsTracker(true);
 
-const pinchGesture = new PinchGesture("indexPinch", FINGERS.INDEX, 0.25, 5);
+const indentGesture = new HandGesture("indent", () => true);
+indentGesture.onActive = (hand, _state) => {
+  const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
+  const middlePos = hand.sceneLandmarks[LM.MIDDLE_TIP];
+  const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
+  voxelGrid.applyBrush(BrushSet.indent, indexPos.x, indexPos.y, indexPos.z);
+  voxelGrid.applyBrush(BrushSet.indent, middlePos.x, middlePos.y, middlePos.z);
+  voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
+};
+
+const pinchGesture = new PinchGesture("pinch", FINGERS.INDEX, 0.25, 5);
 pinchGesture.onStart = (hand, state) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
 
@@ -134,7 +143,8 @@ const swipeGesture = new HandGesture(
       state.speed = (state.speed ?? 0) * 0.5 + delta * 0.5;
     }
     state.lastPos = { ...middlePos };
-    return state.speed > 0.005 * fps;
+    console.log(state.speed, 0.003 * fps);
+    return state.speed > 0.003 * fps;
   },
   15
 );
@@ -240,6 +250,7 @@ rollGesture.onActive = (hands, state) => {
   voxelGrid.applyBrush(BrushSet.roll, ...midPos, false);
 };
 
+handsTracker.addGesture(indentGesture, 0);
 handsTracker.addGesture(pinchGesture, 2);
 handsTracker.addGesture(clawGesture, 1);
 handsTracker.addGesture(swipeGesture, 3);
@@ -267,8 +278,8 @@ scene.animate = async () => {
 
   voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
-  // console.log(handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id);
-  // console.log(handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id);
+  console.log(handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id);
+  console.log(handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id);
   marchingCubes.triangulateDirty();
 
   const now = Date.now();
