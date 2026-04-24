@@ -23,6 +23,7 @@ type HandMetrics = {
   curlAngle: number[];
   palmNormal: V3;
   fingerNormal: V3;
+  handFrame: [V3, V3, V3];
 };
 
 export class HandState {
@@ -59,7 +60,12 @@ export class HandState {
       curlDistance: [],
       curlAngle: [],
       palmNormal: [0, 0, 0],
-      fingerNormal: [0, 0, 0]
+      fingerNormal: [0, 0, 0],
+      handFrame: [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+      ]
     };
 
     this.gesture = null;
@@ -118,27 +124,25 @@ export class HandState {
       );
     });
 
-    const palmVecA = sub(
-      lmToV3(this.worldLandmarks[LM.INDEX_MCP]),
-      lmToV3(this.worldLandmarks[LM.WRIST])
-    );
-    const palmVecB = sub(
-      lmToV3(this.worldLandmarks[LM.PINKY_MCP]),
-      lmToV3(this.worldLandmarks[LM.WRIST])
-    );
-    const palmNormal = cross(palmVecA, palmVecB);
-    this.metrics.palmNormal = normalize(palmNormal);
+    const indexTip = lmToV3(this.worldLandmarks[LM.INDEX_TIP]);
+    const indexMcp = lmToV3(this.worldLandmarks[LM.INDEX_MCP]);
+    const middleMcp = lmToV3(this.worldLandmarks[LM.MIDDLE_MCP]);
+    const pinkyMcp = lmToV3(this.worldLandmarks[LM.PINKY_MCP]);
+    const wrist = lmToV3(this.worldLandmarks[LM.WRIST]);
 
-    const fingerVecA = sub(
-      lmToV3(this.worldLandmarks[LM.INDEX_TIP]),
-      lmToV3(this.worldLandmarks[LM.INDEX_MCP])
-    );
-    const fingerVecB = sub(
-      lmToV3(this.worldLandmarks[LM.PINKY_MCP]),
-      lmToV3(this.worldLandmarks[LM.INDEX_MCP])
-    );
-    const fingerNormal = cross(fingerVecA, fingerVecB);
-    this.metrics.fingerNormal = normalize(fingerNormal);
+    const palmVecA = sub(indexMcp, wrist);
+    const palmVecB = sub(pinkyMcp, wrist);
+    this.metrics.palmNormal = normalize(cross(palmVecA, palmVecB));
+
+    const fingerVecA = sub(indexTip, indexMcp);
+    const fingerVecB = sub(pinkyMcp, indexMcp);
+    this.metrics.fingerNormal = normalize(cross(fingerVecA, fingerVecB));
+
+    const z = normalize(this.metrics.palmNormal);
+    const yRaw = sub(middleMcp, wrist);
+    const x = normalize(cross(yRaw, z));
+    const y = normalize(cross(z, x));
+    this.metrics.handFrame = [x, y, z];
   }
 
   updateHandScale(landmarks: Landmark[]) {

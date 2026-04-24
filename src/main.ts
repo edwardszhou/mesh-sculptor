@@ -9,7 +9,18 @@ import { SculptScene } from "./render/scene";
 import { FINGERS, handLmAverage, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
 import { HandGesture, HandGesturePair, PinchGesture } from "./gestures/gesture";
 import { Brush, BrushSet } from "./voxel/brush";
-import { average, cross, distance, dot, mag, normalize, remap, sub } from "./utils/math";
+import {
+  average,
+  cross,
+  distance,
+  dot,
+  mag,
+  matmul,
+  mattranspose,
+  normalize,
+  remap,
+  sub
+} from "./utils/math";
 import type { HandState } from "./gestures/handState";
 
 const appConfig = {
@@ -91,13 +102,21 @@ clawGesture.onStart = (hand, state) => {
   const mid = handLmAverage(hand.sceneLandmarks, [LM.PINKY_TIP, LM.THUMB_TIP, LM.MIDDLE_MCP]);
   state.component = voxelGrid.findComponent(mid.x, mid.y, mid.z);
   state.startPos = mid;
+  state.startFrame = hand.metrics.handFrame;
 };
 clawGesture.onActive = (hand, state) => {
   const mid = handLmAverage(hand.sceneLandmarks, [LM.PINKY_TIP, LM.THUMB_TIP, LM.MIDDLE_MCP]);
   const translate = sub(lmToV3(mid), lmToV3(state.startPos));
-  voxelGrid.transformComponent(state.component, translate);
+  const rotate = matmul(hand.metrics.handFrame, mattranspose(state.startFrame));
+  voxelGrid.transformComponent(
+    state.component,
+    translate,
+    rotate,
+    lmToV3(hand.sceneLandmarks[LM.WRIST])
+  );
   state.component = voxelGrid.findComponent(mid.x, mid.y, mid.z);
   state.startPos = mid;
+  state.startFrame = hand.metrics.handFrame;
 };
 
 const swipeGesture = new HandGesture(
@@ -248,8 +267,8 @@ scene.animate = async () => {
 
   voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
-  console.log(handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id);
-  console.log(handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id);
+  // console.log(handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id);
+  // console.log(handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id);
   marchingCubes.triangulateDirty();
 
   const now = Date.now();

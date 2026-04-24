@@ -193,10 +193,12 @@ class VoxelGrid {
     return new Int32Array(resultArr);
   }
 
-  transformComponent(component: Int32Array, translation: V3) {
+  transformComponent(component: Int32Array, translation: V3, rotation: [V3, V3, V3], pivot: V3) {
     const componentVoxelCount = component.length / 3;
     const res = this.voxelResolution;
     const [tx, ty, tz] = translation;
+    const [px, py, pz] = pivot;
+    const r = rotation;
 
     // Snapshot component
     const prev = new Float32Array(componentVoxelCount);
@@ -214,9 +216,17 @@ class VoxelGrid {
       const vz = component[i * 3 + 2];
 
       const [wx, wy, wz] = this.vToW(vx, vy, vz);
+      // const lx = wx - px;
+      // const ly = wy - py;
+      // const lz = wz - pz;
+
+      // const rx = r[0][0] * lx + r[0][1] * ly + r[0][2] * lz + px + tx;
+      // const ry = r[1][0] * lx + r[1][1] * ly + r[1][2] * lz + py + ty;
+      // const rz = r[2][0] * lx + r[2][1] * ly + r[2][2] * lz + pz + tz;
       const rx = wx + tx;
       const ry = wy + ty;
       const rz = wz + tz;
+
       const [nvx, nvy, nvz] = this.wToV(rx, ry, rz);
 
       if (nvx < 0 || nvy < 0 || nvz < 0 || nvx >= res || nvy >= res || nvz >= res) continue;

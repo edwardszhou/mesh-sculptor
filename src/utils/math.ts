@@ -48,7 +48,7 @@ export function mag(a: V3): number {
 }
 
 export function normalize(a: V3): V3 {
-  const magA = Math.min(mag(a), 0.001);
+  const magA = Math.max(mag(a), 1e-5);
   return [a[0] / magA, a[1] / magA, a[2] / magA];
 }
 
@@ -58,6 +58,26 @@ export function distance(a: V3, b: V3) {
 
 export function average(a: V3, b: V3): V3 {
   return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+}
+
+export function matmul(A: [V3, V3, V3], B: [V3, V3, V3]): [V3, V3, V3] {
+  const result = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+  ] satisfies [V3, V3, V3];
+
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) result[i][j] += A[i][k] * B[k][j];
+  return result;
+}
+
+export function mattranspose(A: [V3, V3, V3]): [V3, V3, V3] {
+  return [
+    [A[0][0], A[1][0], A[2][0]],
+    [A[0][1], A[1][1], A[2][1]],
+    [A[0][2], A[1][2], A[2][2]]
+  ];
 }
 
 export function remap(
