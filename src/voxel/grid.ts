@@ -155,7 +155,7 @@ class VoxelGrid {
 
     const addToQueue = (vx: number, vy: number, vz: number) => {
       const idx = this.vIdx(vx, vy, vz);
-      if (visited[idx] || this.data[idx] > this.isosurface) return;
+      if (visited[idx]) return;
       visited[idx] = 1;
       queueVx[tail] = vx;
       queueVy[tail] = vy;
@@ -180,7 +180,7 @@ class VoxelGrid {
       resultArr.push(vx);
       resultArr.push(vy);
       resultArr.push(vz);
-
+      if (this.getVoxel(vx, vy, vz) > this.isosurface + 0.15) continue;
       for (let i = 0; i < 6; i++) {
         const nx = vx + dx[i];
         const ny = vy + dy[i];
