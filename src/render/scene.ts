@@ -2,10 +2,10 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import Stats from "three/addons/libs/stats.module.js";
 
-const FOV = 75;
+const FOV = 50;
 const NEAR = 0.1;
 const FAR = 1000;
-const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 0, 4);
+const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 0, 6);
 const Z_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
 class SculptScene {
@@ -73,7 +73,8 @@ class SculptScene {
     if (this.showDebug) this.add(new THREE.GridHelper(10, 10));
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(1, 1, 1);
+    light.position.set(10, 10, 10);
+    light.castShadow = true;
     this.add(light);
     this.add(new THREE.AmbientLight(0x888888));
   }

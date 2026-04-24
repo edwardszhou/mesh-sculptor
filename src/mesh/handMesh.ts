@@ -20,7 +20,7 @@ class HandMesh {
 
   constructor() {
     const pointsMaterial = new THREE.MeshPhysicalMaterial({ color: 0xffffff });
-    const pointsGeometry = new THREE.SphereGeometry(0.12);
+    const pointsGeometry = new THREE.SphereGeometry(0.1);
     const numPoints = NUM_LMS * 2;
     this.points = new THREE.InstancedMesh(pointsGeometry, pointsMaterial, numPoints);
     this.points.frustumCulled = false;

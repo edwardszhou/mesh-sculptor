@@ -25,9 +25,9 @@ import type { HandState } from "./gestures/handState";
 const appConfig = {
   SHOW_WORLD_GRID: false,
   SHOW_VOXEL_GRID: false,
-  SHOW_SCENE_STATS: true,
-  SHOW_MEDIAPIPE_CONNECTIONS: true,
-  SHOW_MEDIAPIPE_STATS: true,
+  SHOW_SCENE_STATS: false,
+  SHOW_MEDIAPIPE_CONNECTIONS: false,
+  SHOW_MEDIAPIPE_STATS: false,
   SHOW_HAND_MESH: true,
   MEDIAPIPE_FILTER: FILTERS.ONEEURO,
   MEDIAPIPE_DUMMY: false,
@@ -45,7 +45,7 @@ const mediapipe = await Mediapipe.create(
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
-const voxelGrid = new VoxelGrid(64, 6, 8, appConfig.SHOW_VOXEL_GRID);
+const voxelGrid = new VoxelGrid(96, 6, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere * 3;
@@ -143,8 +143,7 @@ const swipeGesture = new HandGesture(
       state.speed = (state.speed ?? 0) * 0.5 + delta * 0.5;
     }
     state.lastPos = { ...middlePos };
-    console.log(state.speed, 0.003 * fps);
-    return state.speed > 0.003 * fps;
+    return state.speed > 0.03;
   },
   15
 );
@@ -213,7 +212,7 @@ const rollGesture = new HandGesturePair(
     const leftVel = sub(leftMiddlePos, state.leftLastPos);
     const rightVel = sub(rightMiddlePos, state.rightLastPos);
 
-    if (mag(leftVel) < 0.003 * fps || mag(rightVel) < 0.003 * fps) return false;
+    if (mag(leftVel) < 0.03 || mag(rightVel) < 0.03) return false;
 
     state.leftLastPos = leftMiddlePos;
     state.rightLastPos = rightMiddlePos;
@@ -255,7 +254,7 @@ handsTracker.addGesture(pinchGesture, 2);
 handsTracker.addGesture(clawGesture, 1);
 handsTracker.addGesture(swipeGesture, 3);
 handsTracker.addGesture(squishGesture, 1);
-handsTracker.addGesture(rollGesture, 2);
+// handsTracker.addGesture(rollGesture, 2);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);
@@ -265,6 +264,8 @@ scene.add(handsTracker.mesh.points);
 scene.resize = () => {
   mediapipe.resize();
 };
+
+const debugText = document.getElementById("debug-text");
 
 let fps = 0;
 let lastTime = Date.now();
@@ -276,11 +277,10 @@ scene.animate = async () => {
     mediapipe.predict();
   }
 
-  voxelGrid.updateMesh();
   handsTracker.update(mediapipe.results, scene);
-  console.log(handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id);
-  console.log(handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id);
   marchingCubes.triangulateDirty();
+
+  debugText!.textContent = `Left: ${handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id}\n Right: ${handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id}`;
 
   const now = Date.now();
   const dt = now - lastTime;
