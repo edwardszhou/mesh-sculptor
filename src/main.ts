@@ -6,7 +6,7 @@ import { MarchingCubes } from "./voxel/marchingCubes";
 import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
-import { FINGERS, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
+import { FINGERS, handLmAverage, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
 import { HandGesture, HandGesturePair, PinchGesture } from "./gestures/gesture";
 import { Brush, BrushSet } from "./voxel/brush";
 import { average, cross, distance, dot, mag, normalize, remap, sub } from "./utils/math";
@@ -85,8 +85,20 @@ const clawGesture = new HandGesture(
     const avgCurlAngle = angles.reduce((acc, curr) => acc + curr, 0) / angles.length;
     return avgCurlAngle > 100 && avgCurlAngle < 140 && maxCurlAngle - minCurlAngle < 30;
   },
-  8
+  10
 );
+clawGesture.onStart = (hand, state) => {
+  const mid = handLmAverage(hand.sceneLandmarks, [LM.PINKY_TIP, LM.THUMB_TIP, LM.MIDDLE_MCP]);
+  state.component = voxelGrid.findComponent(mid.x, mid.y, mid.z);
+  state.startPos = mid;
+};
+clawGesture.onActive = (hand, state) => {
+  const mid = handLmAverage(hand.sceneLandmarks, [LM.PINKY_TIP, LM.THUMB_TIP, LM.MIDDLE_MCP]);
+  const translate = sub(lmToV3(mid), lmToV3(state.startPos));
+  voxelGrid.transformComponent(state.component, translate);
+  state.component = voxelGrid.findComponent(mid.x, mid.y, mid.z);
+  state.startPos = mid;
+};
 
 const swipeGesture = new HandGesture(
   "swipe",
@@ -109,7 +121,7 @@ const swipeGesture = new HandGesture(
 );
 swipeGesture.onActive = (hand) => {
   const middlePos = hand.sceneLandmarks[LM.MIDDLE_PIP];
-  voxelGrid.applyBrush(BrushSet.smooth, middlePos.x, middlePos.y, middlePos.z);
+  voxelGrid.applyBrush(BrushSet.smooth, middlePos.x, middlePos.y, middlePos.z, false);
 };
 
 const detectFlat = (hand: HandState) => {

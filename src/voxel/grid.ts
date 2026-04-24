@@ -142,6 +142,90 @@ class VoxelGrid {
     return this.chunks[cx * this.cdx + cy * this.cdy + cz * this.cdz];
   }
 
+  findComponent(seedWx: number, seedWy: number, seedWz: number): Int32Array {
+    const [svx, svy, svz] = this.wToV(seedWx, seedWy, seedWz);
+    if (this.getVoxel(svx, svy, svz) > this.isosurface) return new Int32Array(0);
+
+    const res = this.voxelResolution;
+
+    const visited = new Uint8Array(this.numVoxels);
+    const queueVx = new Int32Array(this.numVoxels);
+    const queueVy = new Int32Array(this.numVoxels);
+    const queueVz = new Int32Array(this.numVoxels);
+
+    const addToQueue = (vx: number, vy: number, vz: number) => {
+      const idx = this.vIdx(vx, vy, vz);
+      if (visited[idx] || this.data[idx] > this.isosurface) return;
+      visited[idx] = 1;
+      queueVx[tail] = vx;
+      queueVy[tail] = vy;
+      queueVz[tail] = vz;
+      tail++;
+    };
+    let head = 0;
+    let tail = 0;
+    addToQueue(svx, svy, svz);
+
+    const resultArr = [];
+
+    const dx = [1, -1, 0, 0, 0, 0];
+    const dy = [0, 0, 1, -1, 0, 0];
+    const dz = [0, 0, 0, 0, 1, -1];
+
+    while (head < tail) {
+      const vx = queueVx[head];
+      const vy = queueVy[head];
+      const vz = queueVz[head];
+      head++;
+      resultArr.push(vx);
+      resultArr.push(vy);
+      resultArr.push(vz);
+
+      for (let i = 0; i < 6; i++) {
+        const nx = vx + dx[i];
+        const ny = vy + dy[i];
+        const nz = vz + dz[i];
+        if (nx < 0 || ny < 0 || nz < 0 || nx >= res || ny >= res || nz >= res) continue;
+        addToQueue(nx, ny, nz);
+      }
+    }
+
+    return new Int32Array(resultArr);
+  }
+
+  transformComponent(component: Int32Array, translation: V3) {
+    const componentVoxelCount = component.length / 3;
+    const res = this.voxelResolution;
+    const [tx, ty, tz] = translation;
+
+    // Snapshot component
+    const prev = new Float32Array(componentVoxelCount);
+    for (let i = 0; i < componentVoxelCount; i++) {
+      const vx = component[i * 3];
+      const vy = component[i * 3 + 1];
+      const vz = component[i * 3 + 2];
+      prev[i] = this.getVoxel(vx, vy, vz);
+      this.setVoxel(vx, vy, vz, 1.0);
+    }
+
+    for (let i = 0; i < componentVoxelCount; i++) {
+      const vx = component[i * 3];
+      const vy = component[i * 3 + 1];
+      const vz = component[i * 3 + 2];
+
+      const [wx, wy, wz] = this.vToW(vx, vy, vz);
+      const rx = wx + tx;
+      const ry = wy + ty;
+      const rz = wz + tz;
+      const [nvx, nvy, nvz] = this.wToV(rx, ry, rz);
+
+      if (nvx < 0 || nvy < 0 || nvz < 0 || nvx >= res || nvy >= res || nvz >= res) continue;
+      const nIdx = this.vIdx(nvx, nvy, nvz);
+      const current = this.data[nIdx];
+      this.setVoxel(nvx, nvy, nvz, Math.min(current, prev[i]));
+    }
+  }
+
   markChunkDirty(chunk: VoxelChunk) {
     if (!chunk.dirty) {
       chunk.dirty = true;
