@@ -30,7 +30,7 @@ export class HandsTracker {
 
     this.left = new HandState();
     this.right = new HandState();
-    this.mesh = new HandMesh();
+    this.mesh = new HandMesh(showMesh);
     this.showMesh = showMesh;
   }
 

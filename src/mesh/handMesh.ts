@@ -10,6 +10,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 class HandMesh {
   points: THREE.InstancedMesh;
   bones: THREE.InstancedMesh;
+  isVisible: boolean;
 
   private _pointMatrix = new THREE.Matrix4();
   private _boneMatrix = new THREE.Matrix4();
@@ -18,7 +19,7 @@ class HandMesh {
   private _bonePos = new THREE.Vector3();
   private _boneDir = new THREE.Vector3();
 
-  constructor() {
+  constructor(visible: boolean) {
     const pointsMaterial = new THREE.MeshPhysicalMaterial({ color: 0xffffff });
     const pointsGeometry = new THREE.SphereGeometry(0.1);
     const numPoints = NUM_LMS * 2;
@@ -30,6 +31,9 @@ class HandMesh {
     const numBones = CONNECTIONS.length * 2;
     this.bones = new THREE.InstancedMesh(bonesGeometry, bonesMaterial, numBones);
     this.bones.frustumCulled = false;
+
+    this.isVisible = visible;
+    this.setVisible(visible);
   }
 
   update(hand: HandState, h: Handedness) {
@@ -80,6 +84,12 @@ class HandMesh {
       this.points.setColorAt(pointOffset + lm, color);
     }
     this.points.instanceColor!.needsUpdate = true;
+  }
+
+  setVisible(visible: boolean) {
+    this.isVisible = visible;
+    this.points.visible = visible;
+    this.bones.visible = visible;
   }
 }
 

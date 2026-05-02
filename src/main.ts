@@ -29,6 +29,7 @@ const appConfig = {
   SHOW_MEDIAPIPE_CONNECTIONS: false,
   SHOW_MEDIAPIPE_STATS: false,
   SHOW_HAND_MESH: true,
+  SHOW_GESTURE: false,
   MEDIAPIPE_FILTER: FILTERS.ONEEURO,
   MEDIAPIPE_DUMMY: false,
   MEDIAPIPE_WORKER: false
@@ -45,7 +46,7 @@ const mediapipe = await Mediapipe.create(
 const homeUI = new Home();
 homeUI.tryStart = async () => await mediapipe.init();
 
-const voxelGrid = new VoxelGrid(96, 6, 8, appConfig.SHOW_VOXEL_GRID);
+const voxelGrid = new VoxelGrid(80, 6, 8, appConfig.SHOW_VOXEL_GRID);
 voxelGrid.setSDF((x, y, z) => {
   const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
   return sphere * 3;
@@ -58,7 +59,7 @@ const marchedMesh = new THREE.Mesh(
   new THREE.MeshStandardMaterial({ color: 0xc8b49a, wireframe: false })
 );
 
-const handsTracker = new HandsTracker(true);
+const handsTracker = new HandsTracker(appConfig.SHOW_HAND_MESH);
 
 const indentGesture = new HandGesture("indent", () => true);
 indentGesture.onActive = (hand, _state) => {
@@ -67,7 +68,7 @@ indentGesture.onActive = (hand, _state) => {
   const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
   voxelGrid.applyBrush(BrushSet.indent, indexPos.x, indexPos.y, indexPos.z);
   voxelGrid.applyBrush(BrushSet.indent, middlePos.x, middlePos.y, middlePos.z);
-  voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
+  // voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
 };
 
 const pinchGesture = new PinchGesture("pinch", FINGERS.INDEX, 0.25, 5);
@@ -143,7 +144,7 @@ const swipeGesture = new HandGesture(
       state.speed = (state.speed ?? 0) * 0.5 + delta * 0.5;
     }
     state.lastPos = { ...middlePos };
-    return state.speed > 0.03;
+    return state.speed > 0.05;
   },
   15
 );
@@ -279,8 +280,10 @@ scene.animate = async () => {
 
   handsTracker.update(mediapipe.results, scene);
   marchingCubes.triangulateDirty();
+  // marchingCubes.triangulate();
 
-  debugText!.textContent = `Left: ${handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id}\n Right: ${handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id}`;
+  if (appConfig.SHOW_GESTURE)
+    debugText!.textContent = `Left: ${handsTracker.left.gesturePair?.id ?? handsTracker.left.gesture?.id}\n Right: ${handsTracker.right.gesturePair?.id ?? handsTracker.right.gesture?.id}`;
 
   const now = Date.now();
   const dt = now - lastTime;

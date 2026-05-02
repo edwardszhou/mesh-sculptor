@@ -264,7 +264,7 @@ class Mediapipe {
           lineWidth: 2
         }
       );
-      // this.drawUtils.drawLandmarks(hand.landmarks, {
+      // this.drawUtils.drawLandmarks(hand.landmarks as MPLandmark[], {
       //   color: "#FFFFFF",
       //   lineWidth: 2
       // });
