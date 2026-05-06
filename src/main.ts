@@ -146,7 +146,7 @@ const swipeGesture = new HandGesture(
     state.lastPos = { ...middlePos };
     return state.speed > 0.05;
   },
-  15
+  10
 );
 swipeGesture.onActive = (hand) => {
   const middlePos = hand.sceneLandmarks[LM.MIDDLE_PIP];
