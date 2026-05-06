@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Jua&display=swap");
 
 * {
   box-sizing: border-box;
@@ -39,9 +39,10 @@ main {
   z-index: 1;
   display: flex;
   align-items: center;
+  flex-direction: column;
+  gap: 48px;
   justify-content: center;
-  backdrop-filter: blur(18px);
-  background: color-mix(in srgb, var(--darkbrown) 70%, transparent);
+  background: color-mix(in srgb, var(--darkbrown) 50%, black);
   transition: all 1s ease;
 }
 
@@ -54,14 +55,15 @@ main {
 #home {
   position: relative;
   width: min(480px, 92vw);
-  padding: 48px;
-  border: 1px solid color-mix(in srgb, var(--lightbrown) 15%, transparent);
-  background: color-mix(in srgb, var(--darkbrown) 60%, transparent);
+  padding: 64px;
+  border: 2px solid color-mix(in srgb, var(--lightbrown) 5%, transparent);
+  border-radius: 32px;
+  background: var(--darkbrown);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 48px;
+  gap: 64px;
 }
 
 #home-header {
@@ -69,37 +71,33 @@ main {
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  padding-top: 24px;
 }
 
 h1 {
-  font-family: "Cormorant Garamond", serif;
-  font-weight: 400;
+  font-family: "Jua", serif;
   font-size: 3.5rem;
   text-align: center;
   letter-spacing: 0.2rem;
-  line-height: 0.9;
+  line-height: 1.1;
   color: var(--lightbrown);
-  text-transform: uppercase;
 }
 h1 span {
-  font-style: italic;
-  color: color-mix(in srgb, var(--lightbrown) 60%, transparent);
+  color: color-mix(in srgb, var(--lightbrown) 50%, transparent);
   letter-spacing: 0.2rem;
 }
 
 .divider {
-  width: 48px;
+  width: 72px;
   height: 1px;
-  background: color-mix(in srgb, var(--lightbrown) 40%, transparent);
+  /* background: color-mix(in srgb, var(--lightbrown) 40%, transparent); */
 }
 
 h3 {
-  font-family: "Inter", sans-serif;
-  font-size: 0.8rem;
-  font-weight: 300;
+  font-family: "DM Sans", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 400;
   letter-spacing: 0.05rem;
-  color: color-mix(in srgb, var(--lightbrown) 60%, transparent);
+  color: color-mix(in srgb, var(--lightbrown) 50%, transparent);
   text-align: center;
 }
 
@@ -116,37 +114,23 @@ h3 {
   padding: 12px 20px;
   border: 1px solid color-mix(in srgb, var(--lightbrown) 10%, transparent);
   background: color-mix(in srgb, var(--lightbrown) 3%, transparent);
-}
-.item-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--lightbrown);
-}
-.item-text {
-  font-family: "Inter", sans-serif;
-  font-size: 0.7rem;
+  font-family: "DM Sans", sans-serif;
   width: 100%;
+  font-size: 0.7rem;
+  font-weight: 400;
   text-align: center;
   letter-spacing: 0.05rem;
   color: color-mix(in srgb, var(--lightbrown) 60%, transparent);
   line-height: 1.5;
 }
-.item-text strong {
-  display: block;
-  color: var(--lightbrown);
-  font-weight: 400;
-}
 
 button {
-  padding: 16px 24px;
-  font-family: "Cormorant Garamond", serif;
+  padding: 16px 32px;
+  border-radius: 999px;
+  font-family: "DM Sans", sans-serif;
   font-size: 1rem;
-  font-weight: 400;
-  letter-spacing: 0.1rem;
+  font-weight: 600;
+  letter-spacing: 0.05rem;
   color: var(--darkbrown);
   background: var(--lightbrown);
   border: none;
@@ -164,7 +148,8 @@ button.loading {
 }
 
 #home-btn {
-  width: 100%;
+  /* width: 100%; */
+  padding: 24px 48px;
   color: var(--darkbrown);
   background: var(--lightbrown);
 }
@@ -189,7 +174,7 @@ button.loading .spinner {
 
 /* error toast */
 #home-error {
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.7rem;
   letter-spacing: 0.1rem;
   color: #c08070;
@@ -229,7 +214,7 @@ button.loading .spinner {
   bottom: 10%;
   left: 10%;
   font-size: 1.5rem;
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   white-space: pre-line;
   color: white;
 }
