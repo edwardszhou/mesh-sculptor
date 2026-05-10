@@ -7,7 +7,7 @@ import { HandsTracker } from "./gestures/tracking";
 import { FILTERS } from "./utils/filter";
 import { SculptScene } from "./render/scene";
 import { FINGERS, handLmAverage, LM, lmDistance, lmToV3 } from "./gestures/landmarks";
-import { HandGesture, HandGesturePair, PinchGesture } from "./gestures/gesture";
+import { HandGesture, HandGesturePair, MotionGesture, PinchGesture } from "./gestures/gesture";
 import { BrushSet } from "./voxel/brush";
 import {
   average,
@@ -250,12 +250,27 @@ rollGesture.onActive = (hands, state) => {
   voxelGrid.applyBrush(BrushSet.roll, ...midPos, false);
 };
 
+const isLeft = (hand: HandState) => {
+  return hand.landmarks[LM.MIDDLE_MCP].x < 0.2;
+};
+const isRight = (hand: HandState) => {
+  return hand.landmarks[LM.MIDDLE_MCP].x > 0.8;
+};
+const resetGesture = new MotionGesture("reset", isLeft, isRight);
+resetGesture.onTriggerAB = () => {
+  voxelGrid.setSDF((x, y, z) => {
+    const sphere = Math.sqrt(x * x + y * y + z * z) - 0.8;
+    return sphere * 3;
+  });
+};
+
 handsTracker.addGesture(indentGesture, 0);
 handsTracker.addGesture(pinchGesture, 2);
 handsTracker.addGesture(clawGesture, 1);
 handsTracker.addGesture(swipeGesture, 3);
 handsTracker.addGesture(squishGesture, 1);
 // handsTracker.addGesture(rollGesture, 2);
+handsTracker.addGesture(resetGesture);
 
 scene.add(voxelGrid.mesh);
 scene.add(marchedMesh);

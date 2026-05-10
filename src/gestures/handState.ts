@@ -15,7 +15,7 @@ import { cross, normalize, sub, type V3 } from "../utils/math";
 const SCENE_LANDMARKS_SCALE = 15;
 const SCENE_LANDMARKS_OFFSET_X = 0.15;
 const SCENE_LANDMARKS_OFFSET_Y = -0.2;
-const SCENE_LANDMARKS_OFFSET_Z = 3;
+const SCENE_LANDMARKS_OFFSET_Z = 4;
 
 type HandMetrics = {
   pinchDistance: number[];
@@ -89,7 +89,7 @@ export class HandState {
     const { x: sceneX, y: sceneY } = scene.screenToWorld(u, v);
     this.transform.x = sceneX;
     this.transform.y = sceneY;
-    this.transform.z = 1 / this.transform.scale - SCENE_LANDMARKS_OFFSET_Z;
+    this.transform.z = 1.5 / this.transform.scale - SCENE_LANDMARKS_OFFSET_Z;
 
     this.relativeLandmarks = result.landmarks.map((lm) => ({
       x: lm.x / this.transform.scale,

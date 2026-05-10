@@ -8,7 +8,7 @@ export const kalmanParams = {
 };
 
 export const oneEuroParams = {
-  minCutoff: 1.2,
+  minCutoff: 2.0,
   beta: 3.0,
   dCutoff: 1
 };
