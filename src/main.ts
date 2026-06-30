@@ -65,7 +65,7 @@ const indentGesture = new HandGesture("indent", () => true);
 indentGesture.onActive = (hand, _state) => {
   const indexPos = hand.sceneLandmarks[LM.INDEX_TIP];
   const middlePos = hand.sceneLandmarks[LM.MIDDLE_TIP];
-  const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
+  // const thumbPos = hand.sceneLandmarks[LM.THUMB_TIP];
   voxelGrid.applyBrush(BrushSet.indent, indexPos.x, indexPos.y, indexPos.z);
   voxelGrid.applyBrush(BrushSet.indent, middlePos.x, middlePos.y, middlePos.z);
   // voxelGrid.applyBrush(BrushSet.indent, thumbPos.x, thumbPos.y, thumbPos.z);
